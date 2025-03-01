@@ -1,0 +1,50 @@
+{
+    "drones": [
+        {
+            "id": 0,
+            "udp_port": 14500,
+            "serial5_port": 5765,
+            "initial_position": {
+                "lat": 59.756400,
+                "lon": 30.200300,
+                "alt": 30
+            }
+        },
+        {
+            "id": 1,
+            "udp_port": 14510,
+            "serial5_port": 5775,
+            "initial_position": {
+                "lat": 59.756500,
+                "lon": 30.200300,
+                "alt": 30
+            }
+        },
+        {
+            "id": 2,
+            "udp_port": 14520,
+            "serial5_port": 5785,
+            "initial_position": {
+                "lat": 59.756500,
+                "lon": 30.200200,
+                "alt": 30
+            }
+        },
+        {
+            "id": 3,
+            "udp_port": 14530,
+            "serial5_port": 5795,
+            "initial_position": {
+                "lat": 59.756400,
+                "lon": 30.200200,
+                "alt": 30
+            }
+        }
+    ],
+    "network": {
+        "max_range": 1000.0,
+        "base_packet_loss": 0.2,
+        "disconnect_probability": 0.1,
+        "update_rate_hz": 10
+    }
+}
