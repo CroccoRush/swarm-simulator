@@ -1,7 +1,7 @@
 SERIAL5_PROTOCOL 45
 Swarm_DIR_ALGO   1
 Swarm_DIR_COEF   0.200000
-Swarm_ID         0
+Swarm_ID         4
 Swarm_RES_TIME   500
 Swarm_XY_ALGO    1
 Swarm_XY_COEF    0.200000
