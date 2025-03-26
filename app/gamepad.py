@@ -1,6 +1,8 @@
 from pymavlink import mavutil
 import tkinter as tk
 from tkinter import messagebox, ttk, simpledialog
+import threading
+import time
 
 from network import NetworkSimulator
 from drone import Drone
@@ -20,6 +22,15 @@ class DroneControlGUI:
 
         # Выбранный дрон для управления
         self.selected_drone = None
+
+        # Текущие значения RC каналов
+        self.current_roll = 1500
+        self.current_pitch = 1500
+        self.current_throttle = 1500
+        self.current_yaw = 1500
+
+        # Флаг выполнения сценария
+        self.script_running = False
 
         # Запускаем цикл для отправки значений по умолчанию, если джойстики не активны
         self.update_rc_values()
@@ -57,6 +68,10 @@ class DroneControlGUI:
 
         self.mode_button = tk.Button(control_frame, text="SET MODE", command=self.set_mode_selected)
         self.mode_button.pack(side=tk.LEFT, padx=5)
+
+        # Кнопка запуска сценария
+        self.script_button = tk.Button(control_frame, text="RUN SCRIPT", command=self.run_script)
+        self.script_button.pack(side=tk.LEFT, padx=5)
 
         # Горизонтальное расположение джойстиков
         self.joysticks_frame = tk.Frame(self.root)
@@ -119,6 +134,51 @@ class DroneControlGUI:
         self.joystick2_canvas.bind("<Button-1>", lambda e: self.on_joystick_press(e, joystick_id=2))
         self.joystick2_canvas.bind("<B1-Motion>", lambda e: self.on_joystick_drag(e, joystick_id=2))
         self.joystick2_canvas.bind("<ButtonRelease-1>", lambda e: self.on_joystick_release(joystick_id=2))
+
+    def run_script(self):
+        """Запуск сценария в отдельном потоке"""
+        if self.script_running:
+            messagebox.showwarning("Warning", "Script is already running")
+            return
+
+        def script_thread():
+            self.script_running = True
+            self.script_button.config(state=tk.DISABLED)
+
+            try:
+                # 1. Летим вперед 5 секунд
+                # messagebox.showinfo("1", "Летим вперед 5 секунд")
+                self.send_script_command(pitch=1200, roll=1500, yaw=1500, throttle=1500, duration=5)
+
+                # 2. Летим вперед и немного поворачиваем 25 секунд
+                # messagebox.showinfo("2", "Летим вперед и немного поворачиваем 20 секунд")
+                self.send_script_command(pitch=1200, roll=1500, yaw=1550, throttle=1500, duration=20)
+
+                # 3. Летим вперед еще 5 секунд
+                # messagebox.showinfo("3", "Летим вперед еще 5 секунд")
+                self.send_script_command(pitch=1200, roll=1500, yaw=1500, throttle=1500, duration=5)
+
+                # Возвращаем джойстики в центр
+                self.send_script_command(pitch=1500, roll=1500, yaw=1500, throttle=1500, duration=0)
+
+                messagebox.showinfo("Script", "Script completed successfully")
+            except Exception as e:
+                messagebox.showerror("Script Error", f"Error during script execution: {str(e)}")
+            finally:
+                self.script_running = False
+                self.script_button.config(state=tk.NORMAL)
+
+        # Запускаем сценарий в отдельном потоке, чтобы не блокировать GUI
+        threading.Thread(target=script_thread, daemon=True).start()
+
+    def send_script_command(self, pitch, roll, yaw, throttle, duration):
+        """Отправляет команду на все дроны и ждет указанное время"""
+        start_time = time.time()
+
+        while self.script_running and time.time() - start_time < duration:
+            for drone in self.network_simulator.drones:
+                drone.send_rc_override(roll, pitch, throttle, yaw)
+            time.sleep(0.01)  # Небольшая задержка между отправками
 
     def on_joystick_press(self, event, joystick_id):
         """Обработка нажатия на джойстик."""
@@ -188,10 +248,10 @@ class DroneControlGUI:
     def update_rc_values(self):
         """Метод для отправки значений в дрон."""
         # Значения по умолчанию
-        roll = 1500
-        pitch = 1500
-        throttle = 1500
-        yaw = 1500
+        roll = default_roll = 1500
+        pitch = default_pitch = 1500
+        throttle = default_throttle = 1500
+        yaw = default_yaw = 1500
 
         # Получаем выбранного дрона
         selected_drone = self.drone_var.get()
@@ -210,9 +270,11 @@ class DroneControlGUI:
         for drone in self.network_simulator.drones:
             if selected_drone == f"Drone {drone.id}" or selected_drone == "All":
                 drone.send_rc_override(roll, pitch, throttle, yaw)
+            else:
+                drone.send_rc_override(default_roll, default_pitch, default_throttle, default_yaw)
 
-        # Повторяем вызов метода каждые 100 мс
-        self.root.after(100, self.update_rc_values)
+        # Повторяем вызов метода каждые 90 мс
+        self.root.after(90, self.update_rc_values)
 
     def get_selected_drones(self) -> list[Drone]:
         """Возвращает список выбранных дронов"""
@@ -268,6 +330,8 @@ class DroneControlGUI:
             messagebox.showerror("Error", "Invalid flight mode selected")
 
     def on_closing(self):
+        self.script_running = False
+
         for drone in self.network_simulator.drones:
             drone.active = False
             if drone.serial5_socket:

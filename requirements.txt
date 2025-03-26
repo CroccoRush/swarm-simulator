@@ -1,2 +1,4 @@
 pymavlink~=2.4.42
 future~=1.0.0
+MAVProxy==1.8.71
+Pillow==11.1.0

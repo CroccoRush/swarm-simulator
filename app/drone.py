@@ -67,7 +67,12 @@ class Drone:
             try:
                 print(f"Drone#{self.id}: Connecting to MAVLink (UDP port {self.udp_port})...")
                 self.conn: mavudp = mavutil.mavlink_connection(f'udpin:0.0.0.0:{self.udp_port}')
-                self.conn.wait_heartbeat()
+                self.conn.target_system = self.id + 1
+                # self.conn.wait_heartbeat()
+                msg = self.conn.recv_match(type='HEARTBEAT', blocking=True)
+                if msg:
+                    print(f"Drone#{self.id}: SYSID#{msg.get_srcSystem()}, COMPID#{msg.get_srcComponent()}")
+                    print(f"Drone#{self.id}: CSYS#{self.conn.target_system}, CCOM#{self.conn.target_component}")
                 self.mav_connected = True
                 print(f"Drone#{self.id}: Connected to MAVLink successfully!")
             except Exception as e:
@@ -98,16 +103,21 @@ class Drone:
         self.serial5_thread.start()
 
     def read_mavlink(self):
-        while self.connected and self.mav_connected:
-            try:
-                msg = self.conn.recv_match(type='LOCAL_POSITION_NED', blocking=False)
-                if msg:
-                    self.position = (msg.x, msg.y, msg.z)
-                    print(f"Drone#{self.id}: POSITION: {self.position}, MSG: {msg}")
-            except Exception as e:
-                self.connected = False
-                print(f"Drone#{self.id}: Failed to receive message from MAVlink: {str(e)}")
-                break
+        with open(f"./logs/drone_{self.id}_position.csv", "a") as log_file:
+            log_file.write(f"time,lat,lon,alt,hdg\n")
+            log_file.flush()
+            while self.connected and self.mav_connected:
+                try:
+                    msg = self.conn.recv_match(type='GLOBAL_POSITION_INT', blocking=False)
+                    if msg and msg.get_srcSystem() == self.conn.target_system:
+                        self.position = (msg.lat, msg.lon, msg.alt, msg.hdg)
+                        print(f"Drone#{self.id}: POSITION: {self.position}")
+                        log_file.write(f"{time.time_ns()},{msg.lat},{msg.lon},{msg.alt},{msg.hdg}\n")
+                        log_file.flush()
+                except Exception as e:
+                    self.connected = False
+                    print(f"Drone#{self.id}: Failed to receive message from MAVlink: {str(e)}")
+                    break
 
     def read_serial5(self):
         """Reading data from SERIAL5."""

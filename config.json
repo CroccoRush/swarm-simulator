@@ -5,9 +5,9 @@
             "udp_port": 14500,
             "serial5_port": 5765,
             "initial_position": {
-                "lat": 59.756400,
-                "lon": 30.200300,
-                "alt": 30
+                "lat": 0.0002,
+                "lon": 0.0002,
+                "alt": 10
             }
         },
         {
@@ -15,9 +15,9 @@
             "udp_port": 14510,
             "serial5_port": 5775,
             "initial_position": {
-                "lat": 59.756500,
-                "lon": 30.200300,
-                "alt": 30
+                "lat": 0.0001,
+                "lon": 0.0001,
+                "alt": 10
             }
         },
         {
@@ -25,9 +25,9 @@
             "udp_port": 14520,
             "serial5_port": 5785,
             "initial_position": {
-                "lat": 59.756500,
-                "lon": 30.200200,
-                "alt": 30
+                "lat": 0.0002,
+                "lon": 0.0001,
+                "alt": 10
             }
         },
         {
@@ -35,9 +35,9 @@
             "udp_port": 14530,
             "serial5_port": 5795,
             "initial_position": {
-                "lat": 59.756400,
-                "lon": 30.200200,
-                "alt": 30
+                "lat": 0.0001,
+                "lon": 0.0002,
+                "alt": 10
             }
         }
     ],
