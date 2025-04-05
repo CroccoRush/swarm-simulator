@@ -2,7 +2,7 @@ Swarm_ID         2
 Swarm_RES_TIME   500
 
 
-Swarm_XY_ALGO    1
+Swarm_XY_ALGO    2
 Swarm_XY_DIST    10.000000
 
 Swarm_BDS_COEF   0.200000
@@ -11,16 +11,16 @@ Swarm_BDS_STOP   1.000000
 
 Swarm_LVP_XY_A   0.200000
 
-Swarm_ALVP_XY_A  0.003000
-Swarm_ALVP_XY_G  0.007000
-Swarm_ALVP_XY_H  0.002000
-Swarm_ALVP_XY_L  0.500000
+Swarm_ALVP_XY_A  0.500000
+Swarm_ALVP_XY_G  0.070000
+Swarm_ALVP_XY_H  0.050000
+Swarm_ALVP_XY_L  0.505000
 Swarm_ALVP_XY_ME 0.100000
 
 
 Swarm_Z_ALGO     2
 
-Swarm_LVP_XY_Z   0.500000
+Swarm_LVP_Z_A    0.500000
 
 Swarm_ALVP_Z_A   0.003000
 Swarm_ALVP_Z_G   0.007000
@@ -29,14 +29,14 @@ Swarm_ALVP_Z_L   0.500000
 Swarm_ALVP_Z_ME  0.100000
 
 
-Swarm_H_ALGO     2
+Swarm_H_ALGO     1
 
 Swarm_LVP_H_A    0.500000
 
-Swarm_ALVP_H_A   0.003000
-Swarm_ALVP_H_G   0.007000
-Swarm_ALVP_H_H   0.002000
-Swarm_ALVP_H_L   0.500000
+Swarm_ALVP_H_A   0.500000
+Swarm_ALVP_H_G   0.070000
+Swarm_ALVP_H_H   0.450000
+Swarm_ALVP_H_L   0.505000
 Swarm_ALVP_H_ME  0.100000
 
 
