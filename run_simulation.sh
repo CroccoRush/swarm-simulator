@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Get the simulator mode (default to gui if not specified)
+SIM_MODE=${1:-gui}
+
 export PATH=$PATH:/home/kiselyovvld/.local/bin  # Needed for mavproxy
 
 RUN="./sitl/run_in_terminal_window.sh"
@@ -48,20 +51,41 @@ MAVPROXY_PID=$!  # Saving the MAVProxy Process PID
 # Time for initialization
 sleep 5
 
-# Running the simulator
-python3 app/simulator.py &
+# Running the simulator with the specified mode
+echo "Starting simulator in $SIM_MODE mode..."
+python3 app/simulator.py --mode $SIM_MODE &
 SIMULATOR_PID=$!  # Saving the simulator Process PID
 
 # Function for completing all processes
 cleanup() {
     echo "Stopping all processes..."
+    kill -TERM $SIMULATOR_PID 2>/dev/null
+    kill -TERM $MAVPROXY_PID 2>/dev/null
     # Terminating SITL processes
     for PID in "${SITL_PIDS[@]}"; do
         kill -TERM $PID 2>/dev/null
     done
-    kill -TERM $MAVPROXY_PID 2>/dev/null
-    kill -TERM $SIMULATOR_PID 2>/dev/null
-    echo "All processes stopped."
+    pkill -f "arducopter"
+    pkill -f "ArduCopter"
+
+    # Give time for completion
+    sleep 3
+    
+    # Force termination if there is anything left
+    pgrep -f "arducopter|ArduCopter" > /dev/null && {
+        echo "Forcing kill of remaining SITL processes..."
+        pkill -9 -f "arducopter"
+        pkill -9 -f "ArduCopter"
+    }
+    
+    # Check that everything is completed
+    if pgrep -f "arducopter|ArduCopter|mavproxy.py|simulator.py" > /dev/null; then
+        echo "WARNING: Some processes still running!"
+        ps aux | grep -E "arducopter|ArduCopter|mavproxy.py|simulator.py" | grep -v grep
+    else
+        echo "All processes stopped successfully."
+    fi
+
     exit 0
 }
 

@@ -20,7 +20,7 @@ class Drone:
         self.initial_position = initial_position
         self.conn: Optional[mavudp] = None
         self.serial5_socket: Optional[socket.socket] = None
-        self.position = (0.0, 0.0, 0.0)
+        self.position = (0.0, 0.0, 0.0, 0.0)
         self.mav_connected = False
         self.serial5_connected = False
         self.connected = False
@@ -39,21 +39,21 @@ class Drone:
             self.position_thread.daemon = True
             self.position_thread.start()
 
-    # Функция для отправки RC-команд
+    # Function for sending RC commands
     def send_rc_override(
         self, channel_1, channel_2, channel_3, channel_4, channel_5=65535, channel_6=65535, channel_7=65535, channel_8=65535
     ):
         self.conn.mav.rc_channels_override_send(
-            self.conn.target_system,     # ID системы
-            self.conn.target_component,  # ID компонента
-            channel_1,  # Канал 1 (Roll)
-            channel_2,  # Канал 2 (Pitch)
-            channel_3,  # Канал 3 (Throttle)
-            channel_4,  # Канал 4 (Yaw)
-            channel_5,  # Канал 5 (дополнительный)
-            channel_6,  # Канал 6 (дополнительный)
-            channel_7,  # Канал 7 (дополнительный)
-            channel_8   # Канал 8 (дополнительный)
+            self.conn.target_system,     # ID system
+            self.conn.target_component,  # ID component
+            channel_1,  # Channel 1 (Roll)
+            channel_2,  # Channel 2 (Pitch)
+            channel_3,  # Channel 3 (Throttle)
+            channel_4,  # Channel 4 (Yaw)
+            channel_5,  # Channel 5 (additional)
+            channel_6,  # Channel 6 (additional)
+            channel_7,  # Channel 7 (additional)
+            channel_8   # Channel 8 (additional)
         )
 
     def arm(self):
@@ -103,9 +103,11 @@ class Drone:
         self.serial5_thread.start()
 
     def read_mavlink(self):
-        with open(f"./logs/drone_{self.id}_position.csv", "a") as log_file:
+        with open(f"./logs/drone_{self.id}_position.csv", "w") as log_file:
             log_file.write(f"time,lat,lon,alt,hdg\n")
             log_file.flush()
+            while not self.sync_flag:
+                continue
             while self.connected and self.mav_connected:
                 try:
                     msg = self.conn.recv_match(type='GLOBAL_POSITION_INT', blocking=False)
@@ -126,7 +128,7 @@ class Drone:
                 data = self.serial5_socket.recv(24)
                 if data:
                     print(f"Drone#{self.id}: SERIAL5 data: {data.hex()}")
-                    # Пересылка данных другим дронам
+                    # Forwarding data to other drones
                     self.forward_data(data)
             except Exception as e:
                 self.connected = False
@@ -148,7 +150,7 @@ class Drone:
         for drone in self.other_drones:
             if drone.connected and drone.id != self.id:
                 try:
-                    # Проверяем состояние сокета и переподключаемся при необходимости
+                    # Checking the socket state and reconnecting if necessary
                     if not drone.serial5_socket or drone.serial5_socket.fileno() == -1:
                         print(f"Drone#{self.id}: Reconnecting to drone#{drone.id}...")
                         drone.connect_serial5()
@@ -157,7 +159,7 @@ class Drone:
                     print(f"Drone#{self.id}: Forwarded data to drone#{drone.id}")
                 except Exception as e:
                     print(f"Drone#{self.id}: Failed to forward data to drone#{drone.id}: {str(e)}")
-                    # Пытаемся переподключиться при следующей отправке
+                    # Trying to reconnect when sending the next time
                     drone.connected = False
                     drone.serial5_socket = None
 
