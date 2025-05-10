@@ -125,7 +125,7 @@ class Drone:
         """Reading data from SERIAL5."""
         while True:
             try:
-                data = self.serial5_socket.recv(24)
+                data = self.serial5_socket.recv(32)
                 if data:
                     print(f"Drone#{self.id}: SERIAL5 data: {data.hex()}")
                     # Forwarding data to other drones
@@ -168,7 +168,7 @@ class Drone:
 
         while not self.sync_flag:
             try:
-                self.serial5_socket.recv(24)
+                self.serial5_socket.recv(32)
             except Exception as e:
                 print(f"Drone#{self.id}: Error reading from SERIAL5: {str(e)}")
                 break
