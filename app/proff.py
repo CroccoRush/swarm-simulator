@@ -492,6 +492,83 @@ def plot_specific_experiments(experiment_nums):
     plt.close()
 
 
+def plot_single_experiment(exp_num: int):
+    """
+    Plots formation errors for single experiment comparing LVP and ALVP algorithms.
+
+    Parameters:
+    experiment_num (int): A number of experiment to plot
+    """
+    print(f"Analyzing specific experiment: {exp_num}")
+
+    plt.figure(figsize=(12, 6))
+    lvp_data = ()
+    alvp_data = ()
+
+    # Process data of the LVP algorithm (parameter 1)
+    lvp_times, lvp_errors = process_experiment_data(1, exp_num)
+
+    # If there is data, save and build a graph for LVP
+    if lvp_times and lvp_errors:
+        lvp_data = (lvp_times, lvp_errors)
+        plt.plot(lvp_times, lvp_errors, linestyle='-', color='blue',
+                 linewidth=1.5, alpha=0.7, label=f'LVP Algorithm')
+
+    # Process data of the ALVP algorithm (parameter 2)
+    alvp_times, alvp_errors = process_experiment_data(2, exp_num)
+
+    # If there is data, save and build a graph for ALVP
+    if alvp_times and alvp_errors:
+        alvp_data = (alvp_times, alvp_errors)
+        plt.plot(alvp_times, alvp_errors, linestyle='-', color='red',
+                 linewidth=1.5, alpha=0.7, label=f'ALVP Algorithm')
+
+    # Check if there is data for building a graph
+    if not lvp_data and not alvp_data:
+        print("No data available for experiment plot")
+        return
+
+    # Collect all times to determine the X axis
+    all_times = []
+    all_times.extend(lvp_data[0])
+    all_times.extend(alvp_data[0])
+
+    if all_times:
+        # Determine the minimum and maximum value for the data
+        all_errors = []
+        all_errors.extend(lvp_data[1])
+        all_errors.extend(alvp_data[1])
+
+        y_min = min(all_errors) * 0.9 if all_errors else 0
+        y_max = max(all_errors) * 1.1 if all_errors else 10
+
+        # Add vertical lines
+        time_markers = [max(all_times) - seconds for seconds in [66.5, 65, 45, 30, 10]]
+        add_vertical_time_markers(
+            plt.gca(),
+            time_markers,
+            y_max
+        )
+
+        # Set the limits of the axes
+        plt.ylim(y_min, y_max)
+
+    # Add the title and axes labels
+    plt.title('Formation Error Comparison for Experiments: LVP vs ALVP')
+    plt.xlabel('Time from Experiment Start (seconds)')
+    plt.ylabel('Formation Error (meters)')
+
+    # Add the legend and grid
+    plt.legend(loc='upper right')
+    plt.grid(True, alpha=0.3)
+
+    # Save the graph
+    plt.tight_layout()
+    plt.savefig('single_experiments_comparison.png')
+    print("Saved single experiments comparison graph to single_experiments_comparison.png")
+    plt.close()
+
+
 def get_rotated_coordinates(drone_data, avg_heading):
     """
     Gets the rotated coordinates of the drones to align them according to the average heading
@@ -642,8 +719,20 @@ def average(n_experiments=10):
     print("\nStatistical Analysis of Average Errors:")
     if lvp_errors:
         print(f"LVP - Mean: {np.mean(lvp_errors):.2f}m, Std: {np.std(lvp_errors):.2f}m")
+        # Calculate integral (area under curve) for LVP
+        lvp_integral = np.trapezoid(lvp_errors, lvp_times)
+        print(f"LVP - Integral: {lvp_integral:.2f} m·s")
     if alvp_errors:
         print(f"ALVP - Mean: {np.mean(alvp_errors):.2f}m, Std: {np.std(alvp_errors):.2f}m")
+        # Calculate integral (area under curve) for ALVP
+        alvp_integral = np.trapezoid(alvp_errors, alvp_times)
+        print(f"ALVP - Integral: {alvp_integral:.2f} m·s")
+    
+    # Compare integrals
+    if lvp_errors and alvp_errors:
+        print(f"\nComparison of integrals:")
+        print(f"LVP/ALVP ratio: {lvp_integral/alvp_integral:.2f}")
+        print(f"Difference (LVP - ALVP): {lvp_integral - alvp_integral:.2f} m·s")
 
 
 def create_boxplot(data, labels, title, output_filename, time_markers=None):
@@ -657,7 +746,7 @@ def create_boxplot(data, labels, title, output_filename, time_markers=None):
     ax = plt.subplot(111)
         
     # Build a Box plot
-    box = ax.boxplot(data, patch_artist=True, labels=labels)
+    box = ax.boxplot(data, patch_artist=True, tick_labels=labels)
     
     # Configure the styles for the Box plot
     for patch in box['boxes']:
@@ -1116,7 +1205,7 @@ Examples:
     )
     parser.add_argument(
         '--mode', type=str,
-        choices=['boxplot', 'average', 'paths', 'specific'], default='boxplot',
+        choices=['boxplot', 'average', 'paths', 'specific', 'single'], default='boxplot',
         help='Analysis mode: boxplot (Box plots and per-experiment error graphs), '
              'average (averaged error graph), paths (drone path visualization), '
              'specific (specific experiments comparison)',
@@ -1127,7 +1216,7 @@ Examples:
     )
     parser.add_argument(
         '--target-exp', type=int, default=1,
-        help='Experiment number to use in plot path',
+        help='Experiment number to use in plot path and single experiment',
     )
     parser.add_argument(
         '--num-experiments', type=int, default=10,
@@ -1148,6 +1237,9 @@ Examples:
     elif args.mode == 'specific':
         print(f"Running specific experiments mode with experiments: {args.experiments}...")
         plot_specific_experiments(args.experiments)
+    elif args.mode == 'single':
+        print(f"Running single experiment mode with experiment: {args.target_exp}...")
+        plot_single_experiment(args.target_exp)
     else:
         print(f"Unknown mode: {args.mode}")
         parser.print_help()
