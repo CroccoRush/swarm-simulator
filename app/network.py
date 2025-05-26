@@ -13,12 +13,14 @@ class NetworkSimulator:
             config = json.load(f)
 
         self.drones = []
+        network_cgf = config['network']
         for drone_cfg in config["drones"]:
             drone = Drone(
                 drone_cfg["id"],
                 drone_cfg["udp_port"],
                 drone_cfg["serial5_port"],
                 drone_cfg["initial_position"],
+                network_cgf["base_packet_loss"],
             )
             self.drones.append(drone)
 

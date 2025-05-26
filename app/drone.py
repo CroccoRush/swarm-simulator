@@ -1,5 +1,6 @@
 import socket
 import time
+import random
 from typing import Optional
 
 from pymavlink import mavutil
@@ -12,12 +13,13 @@ class Drone:
     sync_flag = False
 
     def __init__(
-        self, drone_id, udp_port, serial5_port, initial_position
+        self, drone_id, udp_port, serial5_port, initial_position, base_packet_loss
     ):
         self.id = drone_id
         self.udp_port = udp_port
         self.serial5_port = serial5_port
         self.initial_position = initial_position
+        self.base_packet_loss = base_packet_loss
         self.conn: Optional[mavudp] = None
         self.serial5_socket: Optional[socket.socket] = None
         self.position = (0.0, 0.0, 0.0, 0.0)
@@ -149,6 +151,9 @@ class Drone:
         """Forwarding data to SERIAL5 of other drones."""
         for drone in self.other_drones:
             if drone.connected and drone.id != self.id:
+                if random.random() < self.base_packet_loss:
+                    print(f"Drone#{self.id}: Lost data to drone#{drone.id}")
+                    continue
                 try:
                     # Checking the socket state and reconnecting if necessary
                     if not drone.serial5_socket or drone.serial5_socket.fileno() == -1:
