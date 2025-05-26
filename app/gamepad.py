@@ -151,13 +151,15 @@ class DroneControlGUI:
 
         # List of frequently used parameters
         common_params = [
-            ("Swarm_XY_ALGO",    "xy algorithm", "2"),
-            ("Swarm_LVP_XY_A",   "LVP xy: A",    "0.3"),  # (0, 1)
-            ("Swarm_ALVP_XY_A",  "ALVP xy: A",   "0.3"),  # (0, 1)
-            ("Swarm_ALVP_XY_G",  "ALVP xy: G",   "10"),  # > 0
-            ("Swarm_ALVP_XY_H",  "ALVP xy: H",   "0.33"),  # > 0
-            ("Swarm_ALVP_XY_L",  "ALVP xy: L",   "3"),   # >= 0
-            ("Swarm_ALVP_XY_ME", "ALVP xy: ME",  "10"),  # > 0
+            ("Swarm_XY_ALGO",    "xy algorithm",  "2"),
+            ("Swarm_H_ALGO",     "dir algorithm", "1"),
+            ("Swarm_LVP_XY_A",   "LVP xy: A",     "0.3"),   # (0, 1)
+            ("Swarm_LVP_H_A",    "LVP h: A",      "0.3"),   # (0, 1)
+            ("Swarm_ALVP_XY_A",  "ALVP xy: A",    "0.3"),   # (0, 1)
+            ("Swarm_ALVP_XY_G",  "ALVP xy: G",    "10"),    # > 0
+            ("Swarm_ALVP_XY_H",  "ALVP xy: H",    "0.33"),  # > 0
+            ("Swarm_ALVP_XY_L",  "ALVP xy: L",    "3"),     # >= 0
+            ("Swarm_ALVP_XY_ME", "ALVP xy: ME",   "10"),    # > 0
         ]
 
         # Variables for storing values
