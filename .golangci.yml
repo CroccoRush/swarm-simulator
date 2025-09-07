@@ -1,0 +1,83 @@
+# This file contains only configs which differ from defaults.
+# All possible options can be found here
+# https://github.com/golangci/golangci-lint/blob/master/.golangci.reference.yml
+linters-settings:
+  goimports: # https://golangci-lint.run/usage/linters/#goimports
+    local-prefixes: "git.tevian.ru"
+
+  gofmt: # https://golangci-lint.run/usage/linters/#gofmt
+    rewrite-rules:
+      - pattern: "interface{}"
+        replacement: "any"
+      - pattern: "a[b:len(a)]"
+        replacement: "a[b:]"
+
+  gofumpt: # https://golangci-lint.run/usage/linters/#gofumpt
+    # Choose whether to use the extra rules.
+    # 1) func Foo(bar string, baz string) {}
+    #    vvv
+    #    func Foo(bar, baz string) {}
+    extra-rules: true
+
+  tagalign: # https://golangci-lint.run/usage/linters/#tagalign
+    order:
+      - json
+      - yaml
+      - yml
+      - toml
+      - positional-arg-name
+      - mapstructure
+      - binding
+      - validate
+      - default
+      - required
+      - split_words
+      - description
+      - desc
+    strict: true
+
+  unused: # https://golangci-lint.run/usage/linters/#unused
+    field-writes-are-uses: false
+    exported-fields-are-used: false
+    local-variables-are-used: false
+
+  gocritic: # https://golangci-lint.run/usage/linters/#gocritic
+    # The list of supported checkers can be found in
+    # https://go-critic.github.io/overview
+    enable-all: true
+    disabled-checks:
+      - unnamedResult
+      - sloppyReassign
+      - whyNoLint
+      - exitAfterDefer
+    settings:
+      captLocal:
+        paramsOnly: false
+      ifElseChain:
+        minThreshold: 4
+
+linters:
+  # All descriptions of the linters can be found on the
+  # https://golangci-lint.run/usage/linters/
+  disable-all: true
+  enable:
+    - goimports
+    - gofmt
+    - gofumpt
+    - wsl
+    - whitespace
+    - lll
+    - tagalign
+    - unused
+    - dupword
+    - predeclared
+    - errcheck
+    - ineffassign
+    - gocritic
+
+issues:
+  max-same-issues: 0
+
+  exclude-rules:
+    - source: "//noinspection"
+      linters: [gocritic]
