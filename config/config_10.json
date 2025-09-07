@@ -1,0 +1,70 @@
+{
+  "drones": [
+    {
+      "id": 0,
+      "udp_port": 14500,
+      "serial5_port": 5765,
+      "initial_position": { "lat": 0.0, "lon": 0.0, "alt": 10 }
+    },
+    {
+      "id": 1,
+      "udp_port": 14510,
+      "serial5_port": 5775,
+      "initial_position": { "lat": 0.0001, "lon": 0.0, "alt": 10 }
+    },
+    {
+      "id": 2,
+      "udp_port": 14520,
+      "serial5_port": 5785,
+      "initial_position": { "lat": 0.0002, "lon": 0.0, "alt": 10 }
+    },
+    {
+      "id": 3,
+      "udp_port": 14530,
+      "serial5_port": 5795,
+      "initial_position": { "lat": 0.0, "lon": 0.0001, "alt": 10 }
+    },
+    {
+      "id": 4,
+      "udp_port": 14540,
+      "serial5_port": 5805,
+      "initial_position": { "lat": 0.0001, "lon": 0.0001, "alt": 10 }
+    },
+    {
+      "id": 5,
+      "udp_port": 14550,
+      "serial5_port": 5815,
+      "initial_position": { "lat": 0.0002, "lon": 0.0001, "alt": 10 }
+    },
+    {
+      "id": 6,
+      "udp_port": 14560,
+      "serial5_port": 5825,
+      "initial_position": { "lat": 0.0, "lon": 0.0002, "alt": 10 }
+    },
+    {
+      "id": 7,
+      "udp_port": 14570,
+      "serial5_port": 5835,
+      "initial_position": { "lat": 0.0001, "lon": 0.0002, "alt": 10 }
+    },
+    {
+      "id": 8,
+      "udp_port": 14580,
+      "serial5_port": 5845,
+      "initial_position": { "lat": 0.0002, "lon": 0.0002, "alt": 10 }
+    },
+    {
+      "id": 9,
+      "udp_port": 14590,
+      "serial5_port": 5855,
+      "initial_position": { "lat": 0.00015, "lon": 0.00015, "alt": 10 }
+    }
+  ],
+  "network": {
+    "max_range": 800.0,
+    "base_packet_loss": 0.03,
+    "disconnect_probability": 0.05,
+    "update_rate_hz": 15
+  }
+}

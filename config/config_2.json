@@ -1,0 +1,30 @@
+{
+  "drones": [
+    {
+      "id": 0,
+      "udp_port": 14500,
+      "serial5_port": 5765,
+      "initial_position": {
+        "lat": 0.0,
+        "lon": 0.0,
+        "alt": 10
+      }
+    },
+    {
+      "id": 1,
+      "udp_port": 14510,
+      "serial5_port": 5775,
+      "initial_position": {
+        "lat": 0.0001,
+        "lon": 0.0,
+        "alt": 10
+      }
+    }
+  ],
+  "network": {
+    "max_range": 500.0,
+    "base_packet_loss": 0.05,
+    "disconnect_probability": 0.02,
+    "update_rate_hz": 20
+  }
+}
