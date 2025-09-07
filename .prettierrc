@@ -1,0 +1,11 @@
+overrides:
+  - files: "*.md"
+    options:
+      quoteProps: preserve
+      proseWrap: always
+  - files: "docs/**/*.md"
+    options:
+      embeddedLanguageFormatting: off
+  - files: ".prettierrc"
+    options:
+      parser: yaml
