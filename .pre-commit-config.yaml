@@ -59,3 +59,11 @@ repos:
     hooks:
       - id: pretty-format-ini
         args: [--autofix, ".editorconfig"]
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v2.3.1
+    hooks:
+      - id: golangci-lint-config-verify
+      - id: golangci-lint-full
+        # it is necessary to use a custom entry, because
+        # golangci-lint isn't supposed to be run outside the go module
+        entry: bash -c "cd ./golang_app && golangci-lint run --fix"
