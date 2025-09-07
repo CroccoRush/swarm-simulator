@@ -10,7 +10,19 @@ SITL_BIN="./sitl/arducopter"
 
 # Loading the configuration
 CONFIG_FILE="config.json"
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Configuration file $CONFIG_FILE not found"
+    exit 1
+fi
+
 DRONES=$(jq -c '.drones[]' $CONFIG_FILE)
+if [ $? -ne 0 ]; then
+    echo "Failed to parse configuration file"
+    exit 1
+fi
+
+# Create directories for logs
+mkdir -p flight_logs
 
 # Running SITL for each drone
 SITL_PIDS=()
@@ -22,11 +34,20 @@ for DRONE_CFG in $DRONES; do
     LON=$(echo $DRONE_CFG | jq -r '.initial_position.lon')
     ALT=$(echo $DRONE_CFG | jq -r '.initial_position.alt')
     PARAMS_PATH="./params/copter_$ID.parm"
-    COMMAND="$RUN ArduCopter $SITL_BIN -S --model + --speedup 1 --slave 0 --serial5=tcp:$SERIAL5_PORT:wait --defaults=$PARAMS_PATH --sim-address=127.0.0.1 --home=$LAT,$LON,$ALT,0 -I$ID"
+
+    # Check if params file exists
+    if [ ! -f "$PARAMS_PATH" ]; then
+        echo "Params file $PARAMS_PATH not found, using default"
+        PARAMS_ARG=""
+    else
+        PARAMS_ARG="--defaults=$PARAMS_PATH"
+    fi
+
+    COMMAND="$RUN ArduCopter $SITL_BIN -S --model + --speedup 1 --slave 0 --serial5=tcp:$SERIAL5_PORT:wait $PARAMS_ARG --sim-address=127.0.0.1 --home=$LAT,$LON,$ALT,0 -I$ID"
 
     echo "Starting drone $ID at ($LAT, $LON, $ALT) on UDP port $UDP_PORT and SERIAL5 TCP port $SERIAL5_PORT ..."
     echo "Run $COMMAND ..."
-    xterm -hold -e "$COMMAND 2>&1 | tee /tmp/drone_$ID.log" &
+    xterm -hold -e "$COMMAND 2>&1 | tee /flight_logs/drone_$ID.log" &
     SITL_PIDS+=($!)  # Saving the SITL Process PIDs
 done
 
@@ -45,7 +66,7 @@ for DRONE_CFG in $DRONES; do
 done
 echo "Run $MAVPROXY_COMMAND ..."
 
-xterm -hold -e "$MAVPROXY_COMMAND 2>&1 | tee /tmp/mavproxy.log" &
+xterm -hold -e "$MAVPROXY_COMMAND 2>&1 | tee /flight_logs/mavproxy.log" &
 MAVPROXY_PID=$!  # Saving the MAVProxy Process PID
 
 # Time for initialization
@@ -57,7 +78,7 @@ python3 app/simulator.py --mode $SIM_MODE &
 SIMULATOR_PID=$!  # Saving the simulator Process PID
 
 # Function for completing all processes
-cleanup() {
+function cleanup() {
     echo "Stopping all processes..."
     kill -TERM $SIMULATOR_PID 2>/dev/null
     kill -TERM $MAVPROXY_PID 2>/dev/null
@@ -70,14 +91,14 @@ cleanup() {
 
     # Give time for completion
     sleep 3
-    
+
     # Force termination if there is anything left
     pgrep -f "arducopter|ArduCopter" > /dev/null && {
         echo "Forcing kill of remaining SITL processes..."
         pkill -9 -f "arducopter"
         pkill -9 -f "ArduCopter"
     }
-    
+
     # Check that everything is completed
     if pgrep -f "arducopter|ArduCopter|mavproxy.py|simulator.py" > /dev/null; then
         echo "WARNING: Some processes still running!"

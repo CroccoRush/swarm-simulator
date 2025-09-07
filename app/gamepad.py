@@ -1,11 +1,11 @@
-from pymavlink import mavutil
-import tkinter as tk
-from tkinter import messagebox, ttk, simpledialog
 import threading
 import time
+import tkinter as tk
+from tkinter import messagebox, simpledialog, ttk
 
-from network import NetworkSimulator
 from drone import Drone
+from network import NetworkSimulator
+from pymavlink import mavutil
 
 
 class DroneControlGUI:
@@ -40,14 +40,19 @@ class DroneControlGUI:
         self.drone_selection_frame = tk.Frame(self.root)
         self.drone_selection_frame.pack(padx=10, pady=10)
 
-        self.drone_label = tk.Label(self.drone_selection_frame, text="Select Drone:")
+        self.drone_label = tk.Label(
+            self.drone_selection_frame, text="Select Drone:"
+        )
         self.drone_label.pack(side=tk.LEFT)
 
         self.drone_var = tk.StringVar()
         self.drone_combobox = ttk.Combobox(
             self.drone_selection_frame,
             textvariable=self.drone_var,
-            values=[f"Drone {drone.id}" for drone in self.network_simulator.drones] + ["All"]
+            values=[
+                f"Drone {drone.id}" for drone in self.network_simulator.drones
+            ]
+            + ["All"],
         )
         self.drone_combobox.set("All")  # Значение по умолчанию
         self.drone_combobox.pack(side=tk.LEFT)
@@ -57,24 +62,36 @@ class DroneControlGUI:
         control_frame.pack(padx=10, pady=10)
 
         # Control buttons
-        self.arm_button = tk.Button(control_frame, text="ARM", command=self.arm_selected)
+        self.arm_button = tk.Button(
+            control_frame, text="ARM", command=self.arm_selected
+        )
         self.arm_button.pack(side=tk.LEFT, padx=5)
 
-        self.disarm_button = tk.Button(control_frame, text="DISARM", command=self.disarm_selected)
+        self.disarm_button = tk.Button(
+            control_frame, text="DISARM", command=self.disarm_selected
+        )
         self.disarm_button.pack(side=tk.LEFT, padx=5)
 
-        self.takeoff_button = tk.Button(control_frame, text="TAKE OFF", command=self.takeoff_selected)
+        self.takeoff_button = tk.Button(
+            control_frame, text="TAKE OFF", command=self.takeoff_selected
+        )
         self.takeoff_button.pack(side=tk.LEFT, padx=5)
 
-        self.mode_button = tk.Button(control_frame, text="SET MODE", command=self.set_mode_selected)
+        self.mode_button = tk.Button(
+            control_frame, text="SET MODE", command=self.set_mode_selected
+        )
         self.mode_button.pack(side=tk.LEFT, padx=5)
 
         # Button for running a script
-        self.script_button = tk.Button(control_frame, text="RUN SCRIPT", command=self.run_script)
+        self.script_button = tk.Button(
+            control_frame, text="RUN SCRIPT", command=self.run_script
+        )
         self.script_button.pack(side=tk.LEFT, padx=5)
 
         # Button for setting parameters
-        self.param_button = tk.Button(control_frame, text="SET PARAM", command=self.set_parameters)
+        self.param_button = tk.Button(
+            control_frame, text="SET PARAM", command=self.set_parameters
+        )
         self.param_button.pack(side=tk.LEFT, padx=5)
 
         # Horizontal placement of joysticks
@@ -85,10 +102,14 @@ class DroneControlGUI:
         self.joystick1_frame = tk.Frame(self.joysticks_frame)
         self.joystick1_frame.pack(side=tk.LEFT, padx=10)
 
-        self.joystick1_label = tk.Label(self.joystick1_frame, text="Joystick 1 (Roll/Pitch)")
+        self.joystick1_label = tk.Label(
+            self.joystick1_frame, text="Joystick 1 (Roll/Pitch)"
+        )
         self.joystick1_label.pack()
 
-        self.joystick1_canvas = tk.Canvas(self.joystick1_frame, width=200, height=200, bg="white")
+        self.joystick1_canvas = tk.Canvas(
+            self.joystick1_frame, width=200, height=200, bg="white"
+        )
         self.joystick1_canvas.pack()
 
         # Drawing the center of the first joystick
@@ -99,25 +120,36 @@ class DroneControlGUI:
             self.joystick1_center[1] - self.joystick1_radius,
             self.joystick1_center[0] + self.joystick1_radius,
             self.joystick1_center[1] + self.joystick1_radius,
-            fill="gray"
+            fill="gray",
         )
 
         # Current position of the first joystick
         self.joystick1_position = self.joystick1_center
 
         # Binding mouse events for the first joystick
-        self.joystick1_canvas.bind("<Button-1>", lambda e: self.on_joystick_press(e, joystick_id=1))
-        self.joystick1_canvas.bind("<B1-Motion>", lambda e: self.on_joystick_drag(e, joystick_id=1))
-        self.joystick1_canvas.bind("<ButtonRelease-1>", lambda e: self.on_joystick_release(joystick_id=1))
+        self.joystick1_canvas.bind(
+            "<Button-1>", lambda e: self.on_joystick_press(e, joystick_id=1)
+        )
+        self.joystick1_canvas.bind(
+            "<B1-Motion>", lambda e: self.on_joystick_drag(e, joystick_id=1)
+        )
+        self.joystick1_canvas.bind(
+            "<ButtonRelease-1>",
+            lambda e: self.on_joystick_release(joystick_id=1),
+        )
 
         # Second joystick (Throttle and Yaw)
         self.joystick2_frame = tk.Frame(self.joysticks_frame)
         self.joystick2_frame.pack(side=tk.LEFT, padx=10)
 
-        self.joystick2_label = tk.Label(self.joystick2_frame, text="Joystick 2 (Throttle/Yaw)")
+        self.joystick2_label = tk.Label(
+            self.joystick2_frame, text="Joystick 2 (Throttle/Yaw)"
+        )
         self.joystick2_label.pack()
 
-        self.joystick2_canvas = tk.Canvas(self.joystick2_frame, width=200, height=200, bg="white")
+        self.joystick2_canvas = tk.Canvas(
+            self.joystick2_frame, width=200, height=200, bg="white"
+        )
         self.joystick2_canvas.pack()
 
         # Drawing the center of the second joystick
@@ -128,16 +160,23 @@ class DroneControlGUI:
             self.joystick2_center[1] - self.joystick2_radius,
             self.joystick2_center[0] + self.joystick2_radius,
             self.joystick2_center[1] + self.joystick2_radius,
-            fill="gray"
+            fill="gray",
         )
 
         # Current position of the second joystick
         self.joystick2_position = self.joystick2_center
 
         # Binding mouse events for the second joystick
-        self.joystick2_canvas.bind("<Button-1>", lambda e: self.on_joystick_press(e, joystick_id=2))
-        self.joystick2_canvas.bind("<B1-Motion>", lambda e: self.on_joystick_drag(e, joystick_id=2))
-        self.joystick2_canvas.bind("<ButtonRelease-1>", lambda e: self.on_joystick_release(joystick_id=2))
+        self.joystick2_canvas.bind(
+            "<Button-1>", lambda e: self.on_joystick_press(e, joystick_id=2)
+        )
+        self.joystick2_canvas.bind(
+            "<B1-Motion>", lambda e: self.on_joystick_drag(e, joystick_id=2)
+        )
+        self.joystick2_canvas.bind(
+            "<ButtonRelease-1>",
+            lambda e: self.on_joystick_release(joystick_id=2),
+        )
 
     def set_parameters(self):
         """Sets parameters for all selected drones with the ability to enter arbitrary parameters"""
@@ -151,26 +190,32 @@ class DroneControlGUI:
 
         # List of frequently used parameters
         common_params = [
-            ("Swarm_XY_ALGO",    "xy algorithm",  "2"),
-            ("Swarm_H_ALGO",     "dir algorithm", "1"),
-            ("Swarm_LVP_XY_A",   "LVP xy: A",     "0.3"),   # (0, 1)
-            ("Swarm_LVP_H_A",    "LVP h: A",      "0.3"),   # (0, 1)
-            ("Swarm_ALVP_XY_A",  "ALVP xy: A",    "0.3"),   # (0, 1)
-            ("Swarm_ALVP_XY_G",  "ALVP xy: G",    "10"),    # > 0
-            ("Swarm_ALVP_XY_H",  "ALVP xy: H",    "0.33"),  # > 0
-            ("Swarm_ALVP_XY_L",  "ALVP xy: L",    "3"),     # >= 0
-            ("Swarm_ALVP_XY_ME", "ALVP xy: ME",   "10"),    # > 0
+            ("Swarm_XY_ALGO", "xy algorithm", "2"),
+            ("Swarm_H_ALGO", "dir algorithm", "1"),
+            ("Swarm_LVP_XY_A", "LVP xy: A", "0.3"),  # (0, 1)
+            ("Swarm_LVP_H_A", "LVP h: A", "0.3"),  # (0, 1)
+            ("Swarm_ALVP_XY_A", "ALVP xy: A", "0.3"),  # (0, 1)
+            ("Swarm_ALVP_XY_G", "ALVP xy: G", "10"),  # > 0
+            ("Swarm_ALVP_XY_H", "ALVP xy: H", "0.33"),  # > 0
+            ("Swarm_ALVP_XY_L", "ALVP xy: L", "3"),  # >= 0
+            ("Swarm_ALVP_XY_ME", "ALVP xy: ME", "10"),  # > 0
         ]
 
         # Variables for storing values
         param_vars = {}
 
         # Create input fields for each parameter
-        for i, (param_name, param_label, default_val) in enumerate(common_params):
-            tk.Label(common_frame, text=param_label).grid(row=i, column=0, padx=5, pady=2, sticky="e")
+        for i, (param_name, param_label, default_val) in enumerate(
+            common_params
+        ):
+            tk.Label(common_frame, text=param_label).grid(
+                row=i, column=0, padx=5, pady=2, sticky="e"
+            )
             var = tk.StringVar(value=default_val)
             param_vars[param_name] = var
-            tk.Entry(common_frame, textvariable=var).grid(row=i, column=1, padx=5, pady=2)
+            tk.Entry(common_frame, textvariable=var).grid(
+                row=i, column=1, padx=5, pady=2
+            )
 
         # Frame for arbitrary parameters
         custom_frame = tk.LabelFrame(param_window, text="Custom Parameters")
@@ -185,13 +230,17 @@ class DroneControlGUI:
 
             # Field for parameter name
             name_var = tk.StringVar()
-            tk.Label(custom_frame, text="Parameter name:").grid(row=row, column=0, padx=5, pady=2, sticky="e")
+            tk.Label(custom_frame, text="Parameter name:").grid(
+                row=row, column=0, padx=5, pady=2, sticky="e"
+            )
             name_entry = tk.Entry(custom_frame, textvariable=name_var)
             name_entry.grid(row=row, column=1, padx=5, pady=2)
 
             # Field for parameter value
             value_var = tk.StringVar()
-            tk.Label(custom_frame, text="Value:").grid(row=row, column=2, padx=5, pady=2, sticky="e")
+            tk.Label(custom_frame, text="Value:").grid(
+                row=row, column=2, padx=5, pady=2, sticky="e"
+            )
             value_entry = tk.Entry(custom_frame, textvariable=value_var)
             value_entry.grid(row=row, column=3, padx=5, pady=2)
 
@@ -207,13 +256,17 @@ class DroneControlGUI:
                         if int(widget.grid_info()["row"]) == i:
                             widget.grid(row=i)
 
-            remove_btn = tk.Button(custom_frame, text="×", command=remove_param)
+            remove_btn = tk.Button(
+                custom_frame, text="×", command=remove_param
+            )
             remove_btn.grid(row=row, column=4, padx=5, pady=2)
 
             self.custom_params.append((name_var, value_var))
 
         # Button for adding a new parameter
-        add_param_btn = tk.Button(custom_frame, text="+ Add Parameter", command=add_custom_param)
+        add_param_btn = tk.Button(
+            custom_frame, text="+ Add Parameter", command=add_custom_param
+        )
         add_param_btn.grid(row=0, column=0, columnspan=5, pady=5)
 
         # Function for applying parameters
@@ -230,7 +283,9 @@ class DroneControlGUI:
                     if value:
                         for drone in selected_drones:
                             if drone.connected:
-                                self._set_single_param(drone, param_name, value)
+                                self._set_single_param(
+                                    drone, param_name, value
+                                )
 
                 # Apply arbitrary parameters
                 for name_var, value_var in self.custom_params:
@@ -239,22 +294,33 @@ class DroneControlGUI:
                     if param_name and value:
                         for drone in selected_drones:
                             if drone.connected:
-                                self._set_single_param(drone, param_name, value)
+                                self._set_single_param(
+                                    drone, param_name, value
+                                )
 
-                messagebox.showinfo("Success", f"Parameters set for {len(selected_drones)} drones")
+                messagebox.showinfo(
+                    "Success",
+                    f"Parameters set for {len(selected_drones)} drones",
+                )
                 param_window.destroy()
             except Exception as e:
-                messagebox.showerror("Error", f"Failed to set parameters: {str(e)}")
+                messagebox.showerror(
+                    "Error", f"Failed to set parameters: {str(e)}"
+                )
 
         # Frame for buttons
         button_frame = tk.Frame(param_window)
         button_frame.pack(fill=tk.X, padx=5, pady=5)
 
         # Confirm button
-        tk.Button(button_frame, text="Apply", command=apply_params).pack(side=tk.RIGHT, padx=5)
+        tk.Button(button_frame, text="Apply", command=apply_params).pack(
+            side=tk.RIGHT, padx=5
+        )
 
         # Cancel button
-        tk.Button(button_frame, text="Cancel", command=param_window.destroy).pack(side=tk.RIGHT, padx=5)
+        tk.Button(
+            button_frame, text="Cancel", command=param_window.destroy
+        ).pack(side=tk.RIGHT, padx=5)
 
     def _set_single_param(self, drone, param_name, value):
         """Sets a single parameter for a single drone"""
@@ -271,23 +337,26 @@ class DroneControlGUI:
             drone.conn.mav.param_set_send(
                 drone.conn.target_system,
                 drone.conn.target_component,
-                param_name.encode('utf-8'),
+                param_name.encode("utf-8"),
                 param_value,
-                param_type
+                param_type,
             )
 
             # Request the parameter back for confirmation
             drone.conn.mav.param_request_read_send(
                 drone.conn.target_system,
                 drone.conn.target_component,
-                param_name.encode('utf-8'),
-                -1
+                param_name.encode("utf-8"),
+                -1,
             )
 
             # Log the parameter setting
             print(f"Set parameter {param_name}={value} for drone {drone.id}")
         except Exception as e:
-            print(f"Failed to set parameter {param_name} for drone {drone.id}: {str(e)}")
+            print(
+                f"Failed to set parameter {param_name} for drone {drone.id}: "
+                f"{str(e)}"
+            )
             raise
 
     def run_script(self):
@@ -307,25 +376,35 @@ class DroneControlGUI:
                     drone.conn.mav.set_mode_send(
                         drone.conn.target_system,
                         mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
-                        mode_id
+                        mode_id,
                     )
                 time.sleep(0.5)
 
                 # 1. Fly forward for 10 seconds
-                self.send_script_command(pitch=1200, roll=1500, yaw=1500, throttle=1500, duration=10)
+                self.send_script_command(
+                    pitch=1200, roll=1500, yaw=1500, throttle=1500, duration=10
+                )
 
                 # 2. Fly forward and slightly turn for 15 seconds
-                self.send_script_command(pitch=1125, roll=1500, yaw=1550, throttle=1500, duration=15)
+                self.send_script_command(
+                    pitch=1125, roll=1500, yaw=1550, throttle=1500, duration=15
+                )
 
                 # 3. Fly forward for another 10 seconds
-                self.send_script_command(pitch=1200, roll=1500, yaw=1500, throttle=1500, duration=10)
+                self.send_script_command(
+                    pitch=1200, roll=1500, yaw=1500, throttle=1500, duration=10
+                )
 
                 # Return the joysticks to the center
-                self.send_script_command(pitch=1500, roll=1500, yaw=1500, throttle=1500, duration=0)
+                self.send_script_command(
+                    pitch=1500, roll=1500, yaw=1500, throttle=1500, duration=0
+                )
 
                 messagebox.showinfo("Script", "Script completed successfully")
             except Exception as e:
-                messagebox.showerror("Script Error", f"Error during script execution: {str(e)}")
+                messagebox.showerror(
+                    "Script Error", f"Error during script execution: {str(e)}"
+                )
             finally:
                 self.script_running = False
                 self.script_button.config(state=tk.NORMAL)
@@ -345,9 +424,9 @@ class DroneControlGUI:
             # Make a pause of 30 seconds before starting the experiment
             print("Waiting 30 seconds before starting experiment...")
             time.sleep(30)
-            
+
             selected_drones = self.get_selected_drones()
-            
+
             # 1. Set the drones to GUIDED mode
             print("Setting GUIDED mode...")
             for drone in selected_drones:
@@ -357,10 +436,10 @@ class DroneControlGUI:
                 drone.conn.mav.set_mode_send(
                     drone.conn.target_system,
                     mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
-                    mode_id
+                    mode_id,
                 )
             time.sleep(1)
-            
+
             # 2. Arm the drones
             print("Arming drones...")
             for drone in selected_drones:
@@ -368,7 +447,7 @@ class DroneControlGUI:
                     continue
                 drone.arm()
             time.sleep(2)
-            
+
             # 3. Send the takeoff command
             takeoff_altitude = 10.0  # in meters
             print(f"Taking off to {takeoff_altitude}m...")
@@ -376,11 +455,20 @@ class DroneControlGUI:
                 if not drone.connected:
                     continue
                 drone.conn.mav.command_long_send(
-                    drone.conn.target_system, drone.conn.target_component,
-                    mavutil.mavlink.MAV_CMD_NAV_TAKEOFF, 0, 0, 0, 0, 0, 0, 0, takeoff_altitude
+                    drone.conn.target_system,
+                    drone.conn.target_component,
+                    mavutil.mavlink.MAV_CMD_NAV_TAKEOFF,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    takeoff_altitude,
                 )
             time.sleep(10)  # Wait for the drones to take off
-            
+
             # 4. Set the drones to POSHOLD mode for further control
             print("Setting POSHOLD mode...")
             for drone in selected_drones:
@@ -390,29 +478,39 @@ class DroneControlGUI:
                 drone.conn.mav.set_mode_send(
                     drone.conn.target_system,
                     mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
-                    mode_id
+                    mode_id,
                 )
             time.sleep(1)
 
             # 5. Fly forward for 10 seconds
             print("Flying forward for 10 seconds...")
-            self.send_script_command(pitch=1200, roll=1500, yaw=1500, throttle=1500, duration=10)
+            self.send_script_command(
+                pitch=1200, roll=1500, yaw=1500, throttle=1500, duration=10
+            )
 
             # 6. Fly forward and slightly turn for 15 seconds
             print("Flying forward with slight turn for 15 seconds...")
-            self.send_script_command(pitch=1200, roll=1500, yaw=1550, throttle=1500, duration=15)
+            self.send_script_command(
+                pitch=1200, roll=1500, yaw=1550, throttle=1500, duration=15
+            )
 
             # 7. Fly forward for another 10 seconds
             print("Flying forward for 10 more seconds...")
-            self.send_script_command(pitch=1200, roll=1500, yaw=1500, throttle=1500, duration=10)
+            self.send_script_command(
+                pitch=1200, roll=1500, yaw=1500, throttle=1500, duration=10
+            )
 
             # 8. Return the joysticks to the center
             print("Experiment completed, centering sticks...")
-            self.send_script_command(pitch=1500, roll=1500, yaw=1500, throttle=1500, duration=0)
+            self.send_script_command(
+                pitch=1500, roll=1500, yaw=1500, throttle=1500, duration=0
+            )
 
             messagebox.showinfo("Script", "Script completed successfully")
         except Exception as e:
-            messagebox.showerror("Script Error", f"Error during script execution: {str(e)}")
+            messagebox.showerror(
+                "Script Error", f"Error during script execution: {str(e)}"
+            )
         finally:
             self.script_running = False
             self.script_button.config(state=tk.NORMAL)
@@ -443,10 +541,18 @@ class DroneControlGUI:
         """Processing a joystick release."""
         if joystick_id == 1:
             self.joystick1_active = False
-            self.update_joystick_position(self.joystick1_center[0], self.joystick1_center[1], joystick_id=1)
+            self.update_joystick_position(
+                self.joystick1_center[0],
+                self.joystick1_center[1],
+                joystick_id=1,
+            )
         elif joystick_id == 2:
             self.joystick2_active = False
-            self.update_joystick_position(self.joystick2_center[0], self.joystick2_center[1], joystick_id=2)
+            self.update_joystick_position(
+                self.joystick2_center[0],
+                self.joystick2_center[1],
+                joystick_id=2,
+            )
 
     def update_joystick_position(self, x, y, joystick_id):
         """Updating the joystick position and sending values to the drone."""
@@ -466,7 +572,7 @@ class DroneControlGUI:
         # Limit the joystick position within the circle
         dx = x - center[0]
         dy = y - center[1]
-        distance = (dx ** 2 + dy ** 2) ** 0.5
+        distance = (dx**2 + dy**2) ** 0.5
         if distance > radius:
             dx = dx * radius / distance
             dy = dy * radius / distance
@@ -514,10 +620,15 @@ class DroneControlGUI:
 
         # Send values to the selected drone
         for drone in self.network_simulator.drones:
-            if selected_drone == f"Drone {drone.id}" or selected_drone == "All":
+            if (
+                selected_drone == f"Drone {drone.id}"
+                or selected_drone == "All"
+            ):
                 drone.send_rc_override(roll, pitch, throttle, yaw)
             else:
-                drone.send_rc_override(default_roll, default_pitch, default_throttle, default_yaw)
+                drone.send_rc_override(
+                    default_roll, default_pitch, default_throttle, default_yaw
+                )
 
         # Repeat the method call every 90 ms
         self.root.after(90, self.update_rc_values)
@@ -527,7 +638,11 @@ class DroneControlGUI:
         selected = self.drone_var.get()
         if selected == "All":
             return self.network_simulator.drones
-        return [d for d in self.network_simulator.drones if f"Drone {d.id}" == selected]
+        return [
+            d
+            for d in self.network_simulator.drones
+            if f"Drone {d.id}" == selected
+        ]
 
     def arm_selected(self):
         for drone in self.get_selected_drones():
@@ -535,7 +650,9 @@ class DroneControlGUI:
         if len(self.get_selected_drones()) > 1:
             messagebox.showinfo("ARM", "All drones armed")
         else:
-            messagebox.showinfo("ARM", f"Drone {self.get_selected_drones()[0].id} armed")
+            messagebox.showinfo(
+                "ARM", f"Drone {self.get_selected_drones()[0].id} armed"
+            )
 
     def disarm_selected(self):
         for drone in self.get_selected_drones():
@@ -543,21 +660,39 @@ class DroneControlGUI:
         if len(self.get_selected_drones()) > 1:
             messagebox.showinfo("DISARM", "All drones disarmed")
         else:
-            messagebox.showinfo("DISARM", f"Drone {self.get_selected_drones()[0].id} disarmed")
+            messagebox.showinfo(
+                "DISARM", f"Drone {self.get_selected_drones()[0].id} disarmed"
+            )
 
     def takeoff_selected(self):
-        altitude = simpledialog.askfloat("Takeoff Altitude", "Enter altitude (meters):", initialvalue=10.0)
+        altitude = simpledialog.askfloat(
+            "Takeoff Altitude", "Enter altitude (meters):", initialvalue=10.0
+        )
         if altitude is not None:
             for drone in self.get_selected_drones():
                 drone.conn.mav.command_long_send(
-                    drone.conn.target_system, drone.conn.target_component,
-                    mavutil.mavlink.MAV_CMD_NAV_TAKEOFF, 0, 0, 0, 0, 0, 0, 0, altitude
+                    drone.conn.target_system,
+                    drone.conn.target_component,
+                    mavutil.mavlink.MAV_CMD_NAV_TAKEOFF,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    altitude,
                 )
-            messagebox.showinfo("TAKE OFF", f"Takeoff command sent to {len(self.get_selected_drones())} drones")
+            messagebox.showinfo(
+                "TAKE OFF",
+                f"Takeoff command sent to {len(self.get_selected_drones())} drones",
+            )
 
     def set_mode_selected(self):
         modes = ["GUIDED", "POSHOLD", "STABILIZE"]
-        mode = simpledialog.askstring("Set Mode", "Enter flight mode:", initialvalue="GUIDED")
+        mode = simpledialog.askstring(
+            "Set Mode", "Enter flight mode:", initialvalue="GUIDED"
+        )
         if mode and mode.upper() in modes:
             for drone in self.get_selected_drones():
                 if not drone.connected:
@@ -566,11 +701,12 @@ class DroneControlGUI:
                 drone.conn.mav.set_mode_send(
                     drone.conn.target_system,
                     mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
-                    mode_id
+                    mode_id,
                 )
             messagebox.showinfo(
                 "SET MODE",
-                f"Mode {mode.upper()} set to {len(self.get_selected_drones())} drones"
+                f"Mode {mode.upper()} set to {len(self.get_selected_drones())} "
+                "drones",
             )
         else:
             messagebox.showerror("Error", "Invalid flight mode selected")

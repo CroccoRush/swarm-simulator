@@ -1,11 +1,9 @@
+import random
 import socket
 import time
-import random
-from typing import Optional
-
-from pymavlink import mavutil
 from threading import Thread
 
+from pymavlink import mavutil
 from pymavlink.mavutil import mavudp
 
 
@@ -13,15 +11,20 @@ class Drone:
     sync_flag = False
 
     def __init__(
-        self, drone_id, udp_port, serial5_port, initial_position, base_packet_loss
+        self,
+        drone_id,
+        udp_port,
+        serial5_port,
+        initial_position,
+        base_packet_loss,
     ):
         self.id = drone_id
         self.udp_port = udp_port
         self.serial5_port = serial5_port
         self.initial_position = initial_position
         self.base_packet_loss = base_packet_loss
-        self.conn: Optional[mavudp] = None
-        self.serial5_socket: Optional[socket.socket] = None
+        self.conn: mavudp | None = None
+        self.serial5_socket: socket.socket | None = None
         self.position = (0.0, 0.0, 0.0, 0.0)
         self.mav_connected = False
         self.serial5_connected = False
@@ -29,6 +32,7 @@ class Drone:
         self.position_thread = None
         self.serial5_thread = None
         self.other_drones = []
+        self.network_simulator = None
 
         self.connect_serial5()
         time.sleep(0.5)
@@ -43,10 +47,18 @@ class Drone:
 
     # Function for sending RC commands
     def send_rc_override(
-        self, channel_1, channel_2, channel_3, channel_4, channel_5=65535, channel_6=65535, channel_7=65535, channel_8=65535
+        self,
+        channel_1,
+        channel_2,
+        channel_3,
+        channel_4,
+        channel_5=65535,
+        channel_6=65535,
+        channel_7=65535,
+        channel_8=65535,
     ):
         self.conn.mav.rc_channels_override_send(
-            self.conn.target_system,     # ID system
+            self.conn.target_system,  # ID system
             self.conn.target_component,  # ID component
             channel_1,  # Channel 1 (Roll)
             channel_2,  # Channel 2 (Pitch)
@@ -55,7 +67,7 @@ class Drone:
             channel_5,  # Channel 5 (additional)
             channel_6,  # Channel 6 (additional)
             channel_7,  # Channel 7 (additional)
-            channel_8   # Channel 8 (additional)
+            channel_8,  # Channel 8 (additional)
         )
 
     def arm(self):
@@ -67,30 +79,48 @@ class Drone:
     def connect_mavlink(self):
         while not self.mav_connected:
             try:
-                print(f"Drone#{self.id}: Connecting to MAVLink (UDP port {self.udp_port})...")
-                self.conn: mavudp = mavutil.mavlink_connection(f'udpin:0.0.0.0:{self.udp_port}')
+                print(
+                    f"Drone#{self.id}: Connecting to MAVLink "
+                    f"(UDP port {self.udp_port})..."
+                )
+                self.conn: mavudp = mavutil.mavlink_connection(
+                    f"udpin:0.0.0.0:{self.udp_port}"
+                )
                 self.conn.target_system = self.id + 1
                 # self.conn.wait_heartbeat()
-                msg = self.conn.recv_match(type='HEARTBEAT', blocking=True)
+                msg = self.conn.recv_match(type="HEARTBEAT", blocking=True)
                 if msg:
-                    print(f"Drone#{self.id}: SYSID#{msg.get_srcSystem()}, COMPID#{msg.get_srcComponent()}")
-                    print(f"Drone#{self.id}: CSYS#{self.conn.target_system}, CCOM#{self.conn.target_component}")
+                    print(
+                        f"Drone#{self.id}: SYSID#{msg.get_srcSystem()}, "
+                        f"COMPID#{msg.get_srcComponent()}"
+                    )
+                    print(
+                        f"Drone#{self.id}: CSYS#{self.conn.target_system}, "
+                        f"CCOM#{self.conn.target_component}"
+                    )
                 self.mav_connected = True
                 print(f"Drone#{self.id}: Connected to MAVLink successfully!")
             except Exception as e:
-                print(f"Drone#{self.id}: Failed to connect to MAVLink: {str(e)}")
+                print(
+                    f"Drone#{self.id}: Failed to connect to MAVLink: {str(e)}"
+                )
 
     def connect_serial5(self):
         """Connecting to the SERIAL5 TCP port."""
-        print(f"Drone#{self.id}: Connecting to SERIAL5 (TCP port {self.serial5_port})...")
+        print(
+            f"Drone#{self.id}: Connecting to SERIAL5 "
+            f"(TCP port {self.serial5_port})..."
+        )
         self.serial5_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         while not self.serial5_connected:
             try:
-                self.serial5_socket.connect(('127.0.0.1', self.serial5_port))
+                self.serial5_socket.connect(("127.0.0.1", self.serial5_port))
                 self.serial5_connected = True
                 print(f"Drone#{self.id}: Connected to SERIAL5 successfully!")
             except Exception as e:
-                print(f"Drone#{self.id}: Failed to connect to SERIAL5: {str(e)}")
+                print(
+                    f"Drone#{self.id}: Failed to connect to SERIAL5: {str(e)}"
+                )
 
     def speak_mavlink(self):
         """Starting a thread to update the position"""
@@ -112,15 +142,22 @@ class Drone:
                 continue
             while self.connected and self.mav_connected:
                 try:
-                    msg = self.conn.recv_match(type='GLOBAL_POSITION_INT', blocking=False)
+                    msg = self.conn.recv_match(
+                        type="GLOBAL_POSITION_INT", blocking=False
+                    )
                     if msg and msg.get_srcSystem() == self.conn.target_system:
                         self.position = (msg.lat, msg.lon, msg.alt, msg.hdg)
                         print(f"Drone#{self.id}: POSITION: {self.position}")
-                        log_file.write(f"{time.time_ns()},{msg.lat},{msg.lon},{msg.alt},{msg.hdg}\n")
+                        log_file.write(
+                            f"{time.time_ns()},{msg.lat},{msg.lon},{msg.alt},{msg.hdg}\n"
+                        )
                         log_file.flush()
                 except Exception as e:
                     self.connected = False
-                    print(f"Drone#{self.id}: Failed to receive message from MAVlink: {str(e)}")
+                    print(
+                        f"Drone#{self.id}: Failed to receive message from "
+                        f"MAVlink: {str(e)}"
+                    )
                     break
 
     def read_serial5(self):
@@ -129,20 +166,28 @@ class Drone:
             try:
                 data = self.serial5_socket.recv(32)
                 if data:
-                    print(f"Drone#{self.id}: SERIAL5 data: {data.hex()}")
-                    # Forwarding data to other drones
-                    self.forward_data(data)
+                    print(
+                        f"Drone#{self.id}: Receive SERIAL5 data: {data.hex()}"
+                    )
+                    if self.network_simulator:
+                        self.network_simulator.queue_message(self.id, data)
+                    else:
+                        print(
+                            "NetworkSimulator not connected to "
+                            f"drone#{self.id}, we use direct forwarding"
+                        )
+                        self.forward_data(data)
             except Exception as e:
                 self.connected = False
-                print(f"Error reading from SERIAL5 for drone {self.id}: {str(e)}")
+                print(
+                    f"Error reading from SERIAL5 for drone {self.id}: {str(e)}"
+                )
                 break
 
     def send_data(self, data):
         try:
             self.conn.mav.data_transmission_send(
-                type=0,
-                size=len(data),
-                data=data
+                type=0, size=len(data), data=data
             )
         except Exception as e:
             print(f"Error sending to drone {self.id}: {str(e)}")
@@ -156,14 +201,25 @@ class Drone:
                     continue
                 try:
                     # Checking the socket state and reconnecting if necessary
-                    if not drone.serial5_socket or drone.serial5_socket.fileno() == -1:
-                        print(f"Drone#{self.id}: Reconnecting to drone#{drone.id}...")
+                    if (
+                        not drone.serial5_socket
+                        or drone.serial5_socket.fileno() == -1
+                    ):
+                        print(
+                            f"Drone#{self.id}: Reconnecting to "
+                            f"drone#{drone.id}..."
+                        )
                         drone.connect_serial5()
 
                     drone.serial5_socket.send(data)
-                    print(f"Drone#{self.id}: Forwarded data to drone#{drone.id}")
+                    print(
+                        f"Drone#{self.id}: Forwarded data to drone#{drone.id}"
+                    )
                 except Exception as e:
-                    print(f"Drone#{self.id}: Failed to forward data to drone#{drone.id}: {str(e)}")
+                    print(
+                        f"Drone#{self.id}: Failed to forward data to "
+                        f"drone#{drone.id}: {str(e)}"
+                    )
                     # Trying to reconnect when sending the next time
                     drone.connected = False
                     drone.serial5_socket = None
