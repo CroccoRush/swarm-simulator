@@ -6,7 +6,7 @@ SIM_MODE=${1:-gui}
 export PATH=$PATH:/home/kiselyovvld/.local/bin  # Needed for mavproxy
 
 RUN="./sitl/run_in_terminal_window.sh"
-SITL_BIN="./sitl/arducopter"
+SITL_BIN="./sitl/arducopter.bin"
 
 # Loading the configuration
 CONFIG_FILE="config.json"
