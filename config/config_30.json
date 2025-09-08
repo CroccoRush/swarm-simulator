@@ -1,0 +1,312 @@
+{
+  "drones": [
+    {
+      "id": 0,
+      "udp_port": 14500,
+      "serial5_port": 5765,
+      "initial_position": {
+        "lat": 59.755327111031264,
+        "lon": 30.198020615744507,
+        "alt": 30
+      }
+    },
+    {
+      "id": 1,
+      "udp_port": 14510,
+      "serial5_port": 5775,
+      "initial_position": {
+        "lat": 59.755327111031264,
+        "lon": 30.198912369446706,
+        "alt": 30
+      }
+    },
+    {
+      "id": 2,
+      "udp_port": 14520,
+      "serial5_port": 5785,
+      "initial_position": {
+        "lat": 59.755327111031264,
+        "lon": 30.1998041231489,
+        "alt": 30
+      }
+    },
+    {
+      "id": 3,
+      "udp_port": 14530,
+      "serial5_port": 5795,
+      "initial_position": {
+        "lat": 59.755327111031264,
+        "lon": 30.2006958768511,
+        "alt": 30
+      }
+    },
+    {
+      "id": 4,
+      "udp_port": 14540,
+      "serial5_port": 5805,
+      "initial_position": {
+        "lat": 59.755327111031264,
+        "lon": 30.201587630553295,
+        "alt": 30
+      }
+    },
+    {
+      "id": 5,
+      "udp_port": 14550,
+      "serial5_port": 5815,
+      "initial_position": {
+        "lat": 59.755327111031264,
+        "lon": 30.202479384255493,
+        "alt": 30
+      }
+    },
+    {
+      "id": 6,
+      "udp_port": 14560,
+      "serial5_port": 5825,
+      "initial_position": {
+        "lat": 59.75577626661876,
+        "lon": 30.198020615744507,
+        "alt": 30
+      }
+    },
+    {
+      "id": 7,
+      "udp_port": 14570,
+      "serial5_port": 5835,
+      "initial_position": {
+        "lat": 59.75577626661876,
+        "lon": 30.198912369446706,
+        "alt": 30
+      }
+    },
+    {
+      "id": 8,
+      "udp_port": 14580,
+      "serial5_port": 5845,
+      "initial_position": {
+        "lat": 59.75577626661876,
+        "lon": 30.1998041231489,
+        "alt": 30
+      }
+    },
+    {
+      "id": 9,
+      "udp_port": 14590,
+      "serial5_port": 5855,
+      "initial_position": {
+        "lat": 59.75577626661876,
+        "lon": 30.2006958768511,
+        "alt": 30
+      }
+    },
+    {
+      "id": 10,
+      "udp_port": 14600,
+      "serial5_port": 5865,
+      "initial_position": {
+        "lat": 59.75577626661876,
+        "lon": 30.201587630553295,
+        "alt": 30
+      }
+    },
+    {
+      "id": 11,
+      "udp_port": 14610,
+      "serial5_port": 5875,
+      "initial_position": {
+        "lat": 59.75577626661876,
+        "lon": 30.202479384255493,
+        "alt": 30
+      }
+    },
+    {
+      "id": 12,
+      "udp_port": 14620,
+      "serial5_port": 5885,
+      "initial_position": {
+        "lat": 59.756225422206256,
+        "lon": 30.198020615744507,
+        "alt": 30
+      }
+    },
+    {
+      "id": 13,
+      "udp_port": 14630,
+      "serial5_port": 5895,
+      "initial_position": {
+        "lat": 59.756225422206256,
+        "lon": 30.198912369446706,
+        "alt": 30
+      }
+    },
+    {
+      "id": 14,
+      "udp_port": 14640,
+      "serial5_port": 5905,
+      "initial_position": {
+        "lat": 59.756225422206256,
+        "lon": 30.1998041231489,
+        "alt": 30
+      }
+    },
+    {
+      "id": 15,
+      "udp_port": 14650,
+      "serial5_port": 5915,
+      "initial_position": {
+        "lat": 59.756225422206256,
+        "lon": 30.2006958768511,
+        "alt": 30
+      }
+    },
+    {
+      "id": 16,
+      "udp_port": 14660,
+      "serial5_port": 5925,
+      "initial_position": {
+        "lat": 59.756225422206256,
+        "lon": 30.201587630553295,
+        "alt": 30
+      }
+    },
+    {
+      "id": 17,
+      "udp_port": 14670,
+      "serial5_port": 5935,
+      "initial_position": {
+        "lat": 59.756225422206256,
+        "lon": 30.202479384255493,
+        "alt": 30
+      }
+    },
+    {
+      "id": 18,
+      "udp_port": 14680,
+      "serial5_port": 5945,
+      "initial_position": {
+        "lat": 59.756674577793746,
+        "lon": 30.198020615744507,
+        "alt": 30
+      }
+    },
+    {
+      "id": 19,
+      "udp_port": 14690,
+      "serial5_port": 5955,
+      "initial_position": {
+        "lat": 59.756674577793746,
+        "lon": 30.198912369446706,
+        "alt": 30
+      }
+    },
+    {
+      "id": 20,
+      "udp_port": 14700,
+      "serial5_port": 5965,
+      "initial_position": {
+        "lat": 59.756674577793746,
+        "lon": 30.1998041231489,
+        "alt": 30
+      }
+    },
+    {
+      "id": 21,
+      "udp_port": 14710,
+      "serial5_port": 5975,
+      "initial_position": {
+        "lat": 59.756674577793746,
+        "lon": 30.2006958768511,
+        "alt": 30
+      }
+    },
+    {
+      "id": 22,
+      "udp_port": 14720,
+      "serial5_port": 5985,
+      "initial_position": {
+        "lat": 59.756674577793746,
+        "lon": 30.201587630553295,
+        "alt": 30
+      }
+    },
+    {
+      "id": 23,
+      "udp_port": 14730,
+      "serial5_port": 5995,
+      "initial_position": {
+        "lat": 59.756674577793746,
+        "lon": 30.202479384255493,
+        "alt": 30
+      }
+    },
+    {
+      "id": 24,
+      "udp_port": 14740,
+      "serial5_port": 6005,
+      "initial_position": {
+        "lat": 59.75712373338124,
+        "lon": 30.198020615744507,
+        "alt": 30
+      }
+    },
+    {
+      "id": 25,
+      "udp_port": 14750,
+      "serial5_port": 6015,
+      "initial_position": {
+        "lat": 59.75712373338124,
+        "lon": 30.198912369446706,
+        "alt": 30
+      }
+    },
+    {
+      "id": 26,
+      "udp_port": 14760,
+      "serial5_port": 6025,
+      "initial_position": {
+        "lat": 59.75712373338124,
+        "lon": 30.1998041231489,
+        "alt": 30
+      }
+    },
+    {
+      "id": 27,
+      "udp_port": 14770,
+      "serial5_port": 6035,
+      "initial_position": {
+        "lat": 59.75712373338124,
+        "lon": 30.2006958768511,
+        "alt": 30
+      }
+    },
+    {
+      "id": 28,
+      "udp_port": 14780,
+      "serial5_port": 6045,
+      "initial_position": {
+        "lat": 59.75712373338124,
+        "lon": 30.201587630553295,
+        "alt": 30
+      }
+    },
+    {
+      "id": 29,
+      "udp_port": 14790,
+      "serial5_port": 6055,
+      "initial_position": {
+        "lat": 59.75712373338124,
+        "lon": 30.202479384255493,
+        "alt": 30
+      }
+    }
+  ],
+  "network": {
+    "max_range": 1000,
+    "base_packet_loss": 0.1,
+    "disconnect_probability": 0.05,
+    "update_rate_hz": 10,
+    "channel_buffer_size": 1000,
+    "max_concurrent_msgs": 100
+  }
+}

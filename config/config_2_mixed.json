@@ -1,0 +1,39 @@
+{
+  "drones": [
+    {
+      "id": 0,
+      "udp_port": 14500,
+      "serial5": {
+        "type": "tcp",
+        "port": 5765
+      },
+      "initial_position": {
+        "lat": 59.75645,
+        "lon": 30.20025,
+        "alt": 10
+      }
+    },
+    {
+      "id": 1,
+      "udp_port": 14501,
+      "serial5": {
+        "type": "unix",
+        "port": 0,
+        "path": "/tmp/ardupilot_sitl_1_serial5.sock"
+      },
+      "initial_position": {
+        "lat": 59.75646,
+        "lon": 30.20026,
+        "alt": 10
+      }
+    }
+  ],
+  "network": {
+    "max_range": 1000.0,
+    "base_packet_loss": 0.1,
+    "disconnect_probability": 0.05,
+    "update_rate_hz": 10,
+    "channel_buffer_size": 1000,
+    "max_concurrent_msgs": 100
+  }
+}

@@ -3,7 +3,10 @@
     {
       "id": 0,
       "udp_port": 14500,
-      "serial5_port": 5765,
+      "serial5": {
+        "type": "tcp",
+        "port": 5765
+      },
       "initial_position": {
         "lat": 0.00025,
         "lon": 0.0002,
@@ -13,7 +16,10 @@
     {
       "id": 1,
       "udp_port": 14510,
-      "serial5_port": 5775,
+      "serial5": {
+        "type": "tcp",
+        "port": 5775
+      },
       "initial_position": {
         "lat": 0.0001,
         "lon": 0.00012,
@@ -23,7 +29,10 @@
     {
       "id": 2,
       "udp_port": 14520,
-      "serial5_port": 5785,
+      "serial5": {
+        "type": "tcp",
+        "port": 5785
+      },
       "initial_position": {
         "lat": 0.00018,
         "lon": 0.00011,
@@ -33,7 +42,10 @@
     {
       "id": 3,
       "udp_port": 14530,
-      "serial5_port": 5795,
+      "serial5": {
+        "type": "tcp",
+        "port": 5795
+      },
       "initial_position": {
         "lat": 0.00013,
         "lon": 0.00022,
