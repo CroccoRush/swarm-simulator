@@ -9,11 +9,15 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var testLogLevel *string
+var (
+	testLogLevel    *string
+	testMessageSize int
+)
 
 func init() {
 	tmp := logrus.WarnLevel.String()
 	testLogLevel = &tmp
+	testMessageSize = 32
 }
 
 func TestNewDrone(t *testing.T) {
@@ -32,7 +36,7 @@ func TestNewDrone(t *testing.T) {
 	}
 
 	messageCh := make(chan Message, 10)
-	drone := NewDrone(cfg, messageCh, testLogLevel)
+	drone := NewDrone(cfg, messageCh, testLogLevel, testMessageSize)
 
 	if drone.ID != cfg.ID {
 		t.Errorf("Expected drone ID %d, got %d", cfg.ID, drone.ID)
@@ -71,7 +75,7 @@ func TestDronePositionUpdate(t *testing.T) {
 	}
 
 	messageCh := make(chan Message, 10)
-	drone := NewDrone(cfg, messageCh, testLogLevel)
+	drone := NewDrone(cfg, messageCh, testLogLevel, testMessageSize)
 
 	// Test initial position
 	_ = drone.GetPosition()
@@ -118,7 +122,7 @@ func TestDroneMessageSending(t *testing.T) {
 	}
 
 	messageCh := make(chan Message, 10)
-	drone := NewDrone(cfg, messageCh, testLogLevel)
+	drone := NewDrone(cfg, messageCh, testLogLevel, testMessageSize)
 	drone.connected.Store(true) // Simulate connected state
 
 	// Test message sending
@@ -156,7 +160,7 @@ func TestDroneConnectionState(t *testing.T) {
 	}
 
 	messageCh := make(chan Message, 10)
-	drone := NewDrone(cfg, messageCh, testLogLevel)
+	drone := NewDrone(cfg, messageCh, testLogLevel, testMessageSize)
 
 	// Initial state should be disconnected
 	if drone.IsConnected() {
@@ -195,7 +199,7 @@ func BenchmarkDroneMessageSending(b *testing.B) {
 	}
 
 	messageCh := make(chan Message, 1000)
-	drone := NewDrone(cfg, messageCh, testLogLevel)
+	drone := NewDrone(cfg, messageCh, testLogLevel, testMessageSize)
 	drone.connected.Store(true)
 
 	testData := []byte("Benchmark message data")
@@ -224,7 +228,7 @@ func BenchmarkDronePositionUpdate(b *testing.B) {
 	}
 
 	messageCh := make(chan Message, 10)
-	drone := NewDrone(cfg, messageCh, testLogLevel)
+	drone := NewDrone(cfg, messageCh, testLogLevel, testMessageSize)
 
 	pos := Position{
 		Lat:       59.756500 * 1e7,
@@ -262,7 +266,7 @@ func TestDroneBasicFunctionality(t *testing.T) {
 	messageCh := make(chan Message, 10)
 
 	// Test basic drone creation
-	drone := NewDrone(cfg, messageCh, testLogLevel)
+	drone := NewDrone(cfg, messageCh, testLogLevel, testMessageSize)
 	if drone.ID != cfg.ID {
 		t.Errorf("Expected ID %d, got %d", cfg.ID, drone.ID)
 	}
@@ -291,7 +295,7 @@ func TestDroneSerial5Config(t *testing.T) {
 
 	messageCh := make(chan Message, 10)
 
-	droneTCP := NewDrone(cfgTCP, messageCh, testLogLevel)
+	droneTCP := NewDrone(cfgTCP, messageCh, testLogLevel, testMessageSize)
 	if droneTCP.Serial5Config.Type != "tcp" {
 		t.Errorf("Expected Serial5 type 'tcp', got '%s'", droneTCP.Serial5Config.Type)
 	}
@@ -319,7 +323,7 @@ func TestDroneSerial5Config(t *testing.T) {
 		},
 	}
 
-	droneUnix := NewDrone(cfgUnix, messageCh, testLogLevel)
+	droneUnix := NewDrone(cfgUnix, messageCh, testLogLevel, testMessageSize)
 	if droneUnix.Serial5Config.Type != "unix" {
 		t.Errorf("Expected Serial5 type 'unix', got '%s'", droneUnix.Serial5Config.Type)
 	}

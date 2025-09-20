@@ -82,8 +82,9 @@ type NetworkConfig struct {
 
 // Config represents the complete simulator configuration
 type Config struct {
-	Drones  []DroneConfig `json:"drones"`
-	Network NetworkConfig `json:"network"`
+	Drones      []DroneConfig `json:"drones"`
+	Network     NetworkConfig `json:"network"`
+	MessageSize int           `json:"message_size,omitempty"`
 }
 
 // LoadConfig loads configuration from a JSON file
@@ -105,6 +106,10 @@ func LoadConfig(filename string) (*Config, error) {
 
 	if config.Network.MaxConcurrentMsgs == 0 {
 		config.Network.MaxConcurrentMsgs = 100
+	}
+
+	if config.MessageSize == 0 {
+		config.MessageSize = 32
 	}
 
 	// Set defaults for Serial5 configuration if not specified
@@ -158,5 +163,6 @@ func DefaultConfig() *Config {
 			ChannelBufferSize:     1000,
 			MaxConcurrentMsgs:     100,
 		},
+		MessageSize: 32,
 	}
 }
