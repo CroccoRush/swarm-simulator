@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"swarm-simulator/internal/config"
 	"swarm-simulator/internal/logger"
@@ -30,6 +31,7 @@ type Drone struct {
 	UDPPort         int
 	Serial5Config   config.Serial5Config
 	InitialPosition config.Position
+	MessageSize     int
 
 	// Current state
 	position     atomic.Value // stores Position
@@ -79,6 +81,7 @@ func NewDrone(
 	cfg config.DroneConfig,
 	messageTx chan<- Message,
 	logLevel *string,
+	messageSize int,
 ) *Drone {
 	log := logger.NewLogger(logLevel, "DRONE").WithField("id", cfg.ID)
 	d := &Drone{
@@ -86,6 +89,7 @@ func NewDrone(
 		UDPPort:         cfg.UDPPort,
 		Serial5Config:   cfg.Serial5,
 		InitialPosition: cfg.InitialPosition,
+		MessageSize:     messageSize,
 		messageTx:       messageTx,
 		messageRx:       make(chan Message, 100),
 		controlCh:       make(chan ControlCommand, 10),
@@ -347,7 +351,13 @@ func (d *Drone) mavlinkReader(ctx context.Context) {
 func (d *Drone) dataHandler(ctx context.Context) {
 	defer d.wg.Done()
 
-	buffer := make([]byte, 1024)
+	if d.MessageSize <= 0 {
+		d.logger.Warn(
+			"MessageSize not configured or invalid, data handler will not run",
+		)
+		return
+	}
+	buffer := make([]byte, d.MessageSize)
 
 	for {
 		select {
@@ -361,16 +371,19 @@ func (d *Drone) dataHandler(ctx context.Context) {
 			d.mu.RUnlock()
 
 			if conn == nil {
+				d.logger.Warn("Data connection closed")
 				time.Sleep(100 * time.Millisecond)
 				continue
 			}
 
 			conn.SetReadDeadline(time.Now().Add(1 * time.Second))
 
-			n, err := conn.Read(buffer)
+			// Use io.ReadFull to ensure a full message is read
+			n, err := io.ReadFull(conn, buffer)
 			if err != nil {
 				var netErr net.Error
 				if errors.As(err, &netErr) && netErr.Timeout() {
+					d.logger.Warnf("Data connection read timeout: %v", err)
 					continue
 				}
 
@@ -383,7 +396,7 @@ func (d *Drone) dataHandler(ctx context.Context) {
 				continue
 			}
 
-			if n > 0 {
+			if n > 0 { // This will be equal to d.MessageSize
 				data := make([]byte, n)
 				copy(data, buffer[:n])
 				d.logger.Debugf("Received data: %x", data)
