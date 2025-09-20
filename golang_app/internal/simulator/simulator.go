@@ -61,7 +61,7 @@ func NewSimulator(cfg *config.Config, logLevel *string) (*Simulator, error) {
 	messageCh := networkSim.GetMessageChannel()
 
 	for _, droneConfig := range cfg.Drones {
-		d := drone.NewDrone(droneConfig, messageCh, logLevel)
+		d := drone.NewDrone(droneConfig, messageCh, logLevel, cfg.MessageSize)
 		sim.drones = append(sim.drones, d)
 		networkSim.AddDrone(d)
 	}

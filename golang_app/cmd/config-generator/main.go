@@ -19,6 +19,7 @@ func main() {
 		verbose         = flag.Bool("verbose", false, "Verbose output")
 		serial5Type     = flag.String("serial5-type", "tcp", "Serial5 connection type: tcp or unix")
 		serial5BasePath = flag.String("serial5-base-path", "/tmp/swarm_sitl", "Base path for Unix sockets (only for unix type)")
+		messageSize     = flag.Int("message-size", 32, "Size of messages for data connection in bytes")
 	)
 
 	flag.Parse()
@@ -33,7 +34,7 @@ func main() {
 	}
 
 	cfg := generateConfig(
-		*numDrones, *formation, *spacing, *maxRange, *lossRate, *serial5Type, *serial5BasePath,
+		*numDrones, *formation, *spacing, *maxRange, *lossRate, *serial5Type, *serial5BasePath, *messageSize,
 	)
 
 	if err := config.SaveConfig(cfg, *output); err != nil {
@@ -44,6 +45,7 @@ func main() {
 	fmt.Printf("Saved to: %s\n", *output)
 	fmt.Printf("Formation: %s (spacing: %.1fm)\n", *formation, *spacing)
 	fmt.Printf("Network: range=%.0fm, loss=%.1f%%\n", *maxRange, *lossRate*100)
+	fmt.Printf("Message Size: %d bytes\n", *messageSize)
 	fmt.Printf("Serial5: %s", *serial5Type)
 	if *serial5Type == "unix" {
 		fmt.Printf(" (base path: %s)", *serial5BasePath)
@@ -60,6 +62,7 @@ func generateConfig(
 	formation string,
 	spacing, maxRange, lossRate float64,
 	serial5Type, serial5BasePath string,
+	messageSize int,
 ) *config.Config {
 	cfg := &config.Config{
 		Drones: make([]config.DroneConfig, numDrones),
@@ -71,6 +74,7 @@ func generateConfig(
 			ChannelBufferSize:     1000,
 			MaxConcurrentMsgs:     100,
 		},
+		MessageSize: messageSize,
 	}
 
 	// Generate positions based on formation
@@ -219,6 +223,7 @@ func printConfigDetails(cfg *config.Config) {
 	fmt.Printf("  Update Rate:     %d Hz\n", cfg.Network.UpdateRateHz)
 	fmt.Printf("  Channel Buffer:  %d\n", cfg.Network.ChannelBufferSize)
 	fmt.Printf("  Max Concurrent:  %d\n", cfg.Network.MaxConcurrentMsgs)
+	fmt.Printf("  Message Size:    %d bytes\n", cfg.MessageSize)
 
 	// Calculate port/socket ranges
 	if len(cfg.Drones) > 0 {
