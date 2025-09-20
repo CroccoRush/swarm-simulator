@@ -146,8 +146,9 @@ for DRONE_CFG in $DRONES; do
         PARAMS_ARG="--defaults=$PARAMS_PATH"
     fi
 
+    BASE_PORT=$((5760 + 10 * ID))
     SITL_CORE=$(( (ID * 2) % $(nproc) ))
-    COMMAND="taskset -c $SITL_CORE $SITL_BIN -S --model + --speedup 1 --slave 0 $SERIAL5_ARG $PARAMS_ARG --sim-address=127.0.0.1 --home=$LAT,$LON,$ALT,0 -I$ID --disable-fgview"
+    COMMAND="taskset -c $SITL_CORE $SITL_BIN -S --model + --speedup 1 --slave 0 --base-port $BASE_PORT $SERIAL5_ARG $PARAMS_ARG --sim-address=127.0.0.1 --home=$LAT,$LON,$ALT,0 -I$ID --disable-fgview"
 
     if [ $((ID % 20)) -eq 0 ]; then
         echo "   Starting drone $ID/$DRONE_COUNT at ($LAT, $LON, $ALT) on UDP port $UDP_PORT and Serial5 $SERIAL5_INFO"
