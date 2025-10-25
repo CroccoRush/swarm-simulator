@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"swarm-simulator/internal/config"
 	"swarm-simulator/internal/logger"
 	"swarm-simulator/internal/mavlink"
@@ -41,6 +42,7 @@ type Drone struct {
 	// Network connections
 	mavlinkConn *mavlink.Connection
 	dataConn    net.Conn // Connection for inter-drone data (Serial5, TCP, or via QEMU)
+	logFile     *os.File
 
 	// Communication channels
 	messageTx  chan<- Message // Send messages to network simulator
@@ -95,6 +97,23 @@ func NewDrone(
 		controlCh:       make(chan ControlCommand, 10),
 		shutdownCh:      make(chan struct{}),
 		logger:          log,
+	}
+
+	// Create log file
+	if err := os.MkdirAll("logs", 0755); err != nil {
+		log.Errorf("Failed to create logs directory: %v", err)
+	} else {
+		logPath := fmt.Sprintf("logs/drone_%d_position.csv", d.ID)
+		file, err := os.Create(logPath)
+		if err != nil {
+			log.Errorf("Failed to create log file: %v", err)
+		} else {
+			d.logFile = file
+			// Write CSV header
+			if _, err := d.logFile.WriteString("time,lat,lon,alt,hdg\n"); err != nil {
+				log.Errorf("Failed to write header to log file: %v", err)
+			}
+		}
 	}
 
 	// Set initial position
@@ -165,6 +184,10 @@ func (d *Drone) Stop(ctx context.Context) error {
 
 	if d.dataConn != nil {
 		d.dataConn.Close()
+	}
+
+	if d.logFile != nil {
+		d.logFile.Close()
 	}
 
 	return nil
@@ -342,6 +365,19 @@ func (d *Drone) mavlinkReader(ctx context.Context) {
 					"Position: %.6f,%.6f,%.1f",
 					pos.Lat/1e7, pos.Lon/1e7, pos.Alt/1000,
 				)
+				// Log to file
+				if d.logFile != nil {
+					logLine := fmt.Sprintf("%d,%d,%d,%d,%d\n",
+						time.Now().UnixNano(),
+						int64(pos.Lat),
+						int64(pos.Lon),
+						int64(pos.Alt),
+						int64(pos.Heading),
+					)
+					if _, err := d.logFile.WriteString(logLine); err != nil {
+						d.logger.Warnf("Failed to write to log file: %v", err)
+					}
+				}
 			}
 		}
 	}
