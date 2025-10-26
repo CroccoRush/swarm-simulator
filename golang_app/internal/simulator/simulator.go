@@ -161,13 +161,14 @@ func (s *Simulator) Shutdown(ctx context.Context) error {
 func (s *Simulator) runExperimentMode(ctx context.Context) {
 	defer s.wg.Done()
 
+	// Wait for initialization
+	s.logger.Info("Waiting for initialization...")
+	time.Sleep(15 * time.Second)
+
 	s.logger.Info("Running in experiment mode")
 
 	// Get experiment parameters from environment or use defaults
 	expParams := s.getExperimentParameters()
-
-	// Wait for initialization
-	time.Sleep(5 * time.Second)
 
 	// Run experiment sequence
 	if err := s.runExperimentSequence(ctx, expParams); err != nil {
@@ -224,7 +225,7 @@ func (s *Simulator) runExperimentSequence(ctx context.Context, params Experiment
 	// Phase 1: Prepare drones
 	s.logger.Infof("Phase 1: Preparing drones...")
 
-	if err := s.prepareSwarm(ctx); err != nil {
+	if err := s.prepareSwarm(ctx, params); err != nil {
 		return fmt.Errorf("failed to prepare swarm: %w", err)
 	}
 
@@ -253,8 +254,8 @@ func (s *Simulator) runExperimentSequence(ctx context.Context, params Experiment
 }
 
 // prepareSwarm prepares all drones for the experiment
-func (s *Simulator) prepareSwarm(ctx context.Context) error {
-	s.logger.Infof("Setting GUIDED mode for all drones...")
+func (s *Simulator) prepareSwarm(ctx context.Context, params ExperimentData) error {
+	s.logger.Info("Preparing swarm...")
 
 	for _, d := range s.drones {
 		d.SendControlCommand(drone.ControlCommand{
@@ -263,41 +264,53 @@ func (s *Simulator) prepareSwarm(ctx context.Context) error {
 		})
 	}
 
-	time.Sleep(2 * time.Second)
+	// Wait for all drones to have a position fix before arming
+	s.logger.Info("Waiting for all drones to acquire position fix from SITL...")
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-	s.logger.Info("Arming all drones...")
+	wg := sync.WaitGroup{}
+	for i := range s.drones {
+		wg.Add(1)
+		go func(d *drone.Drone) {
+			defer wg.Done()
+			for {
+				select {
+				case <-ctx.Done():
+					s.logger.Errorf("Drone %d failed to acquire position fix within timeout", d.ID)
+					return
+				default:
+					if d.HasPositionFix() {
+						s.logger.Infof("Drone %d has position fix", d.ID)
+						return
+					}
+					time.Sleep(100 * time.Millisecond)
+				}
+			}
+		}(s.drones[i])
+	}
+	wg.Wait()
 
+	if ctx.Err() != nil {
+		return fmt.Errorf("failed to prepare swarm: one or more drones did not acquire a position fix")
+	}
+
+	// Arming
+	time.Sleep(60 * time.Second)
+
+	s.logger.Info("All drones have position fix. Arming...")
 	for _, d := range s.drones {
 		d.SendControlCommand(drone.ControlCommand{Type: "arm"})
 	}
 
-	time.Sleep(3 * time.Second)
+	time.Sleep(1 * time.Second)
 
-	return nil
-}
-
-// executeFlightPattern executes the specified flight pattern
-func (s *Simulator) executeFlightPattern(ctx context.Context, params ExperimentData) error {
-	switch params.FlightPattern {
-	case "formation_flight":
-		return s.executeFormationFlight(ctx, params)
-	case "dispersion":
-		return s.executeDispersion(ctx, params)
-	default:
-		return fmt.Errorf("unknown flight pattern: %s", params.FlightPattern)
-	}
-}
-
-// executeFormationFlight executes formation flight pattern
-func (s *Simulator) executeFormationFlight(ctx context.Context, params ExperimentData) error {
-	s.logger.Info("Executing formation flight pattern")
-
+	// Take off
 	altitude := 10.0
 	if alt, ok := params.Parameters["altitude"].(float64); ok {
 		altitude = alt
 	}
 
-	// Take off
 	s.logger.Infof("Taking off to %.1fm...", altitude)
 
 	for _, d := range s.drones {
@@ -308,6 +321,32 @@ func (s *Simulator) executeFormationFlight(ctx context.Context, params Experimen
 	}
 
 	time.Sleep(10 * time.Second)
+
+	return nil
+}
+
+// executeFlightPattern executes the specified flight pattern
+func (s *Simulator) executeFlightPattern(ctx context.Context, params ExperimentData) error {
+	switch params.FlightPattern {
+	case "formation_flight":
+		return s.executeFormationFlight(ctx)
+	case "dispersion":
+		return s.executeDispersion(ctx)
+	default:
+		return fmt.Errorf("unknown flight pattern: %s", params.FlightPattern)
+	}
+}
+
+// executeFormationFlight executes formation flight pattern
+func (s *Simulator) executeFormationFlight(ctx context.Context) error {
+	s.logger.Info("Executing formation flight pattern")
+
+	for _, d := range s.drones {
+		d.SendControlCommand(drone.ControlCommand{
+			Type: "set_mode",
+			Data: "POSHOLD",
+		})
+	}
 
 	// Execute formation maneuvers
 	s.logger.Info("Executing formation maneuvers...")
@@ -325,7 +364,7 @@ func (s *Simulator) executeFormationFlight(ctx context.Context, params Experimen
 		Channel1: 1500, // Roll center
 		Channel2: 1400, // Pitch slight forward
 		Channel3: 1500, // Throttle center
-		Channel4: 1650, // Yaw right
+		Channel4: 1550, // Yaw right
 	}, 15*time.Second)
 
 	// Forward flight again
@@ -340,7 +379,7 @@ func (s *Simulator) executeFormationFlight(ctx context.Context, params Experimen
 }
 
 // executeDispersion executes dispersion pattern
-func (s *Simulator) executeDispersion(ctx context.Context, params ExperimentData) error {
+func (s *Simulator) executeDispersion(ctx context.Context) error {
 	s.logger.Info("Executing dispersion pattern")
 	// TODO: Implement dispersion pattern
 	return nil
