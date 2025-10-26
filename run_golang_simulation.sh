@@ -166,12 +166,13 @@ for DRONE_CFG in $DRONES; do
     UDP_PORT=$(echo $DRONE_CFG | jq -r '.udp_port')
     MASTER_PORT=$((5760 + 10 * ID))
     SITL_PORT=$((5501 + ID))
+    MP_PORT=$((15000 + ID))
 
     echo "Starting MAVProxy for drone $ID..."
     MAVPROXY_CORE=$(( (ID * 2 + 1) % $(nproc) ))
-    MAVPROXY_COMMAND="taskset -c $MAVPROXY_CORE mavproxy.py --master tcp:127.0.0.1:$MASTER_PORT --sitl 127.0.0.1:$SITL_PORT --out udp:0.0.0.0:$UDP_PORT --out udp:0.0.0.0:$((15000 + ID))"
+    MAVPROXY_COMMAND="taskset -c $MAVPROXY_CORE mavproxy.py --master tcp:127.0.0.1:$MASTER_PORT --sitl 127.0.0.1:$SITL_PORT --out udp:0.0.0.0:$UDP_PORT --out 172.28.0.1:$MP_PORT"
     echo "   Command: $MAVPROXY_COMMAND"
-    echo "   Go Simulator подключается к UDP:$UDP_PORT, Mission Planner к UDP:$((15000 + ID))"
+    echo "   Go Simulator подключается к UDP:$UDP_PORT, Mission Planner к UDP:$MP_PORT"
 
     xterm -title "MAVProxy $ID" -hold -e "$MAVPROXY_COMMAND 2>&1 | tee logs/mavproxy_$ID.log" &
     # $MAVPROXY_COMMAND  1>/dev/null 2>/dev/null | tee logs/mavproxy_$ID.log &
