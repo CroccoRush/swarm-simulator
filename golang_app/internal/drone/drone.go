@@ -51,9 +51,10 @@ type Drone struct {
 	shutdownCh chan struct{}
 
 	// Concurrency control
-	wg     sync.WaitGroup
-	mu     sync.RWMutex
-	logger *logrus.Entry
+	wg         sync.WaitGroup
+	mu         sync.RWMutex
+	logger     *logrus.Entry
+	rcOverride mavlink.RCOverride
 }
 
 // Message represents a message sent between drones
@@ -97,6 +98,12 @@ func NewDrone(
 		controlCh:       make(chan ControlCommand, 10),
 		shutdownCh:      make(chan struct{}),
 		logger:          log,
+		rcOverride: mavlink.RCOverride{
+			Channel1: 1500, // Roll center
+			Channel2: 1500, // Pitch center
+			Channel3: 1500, // Throttle center
+			Channel4: 1500, // Yaw center
+		},
 	}
 
 	// Create log file
@@ -475,9 +482,17 @@ func (d *Drone) messageProcessor(ctx context.Context) {
 	}
 }
 
-// controlHandler handles control commands
+// controlHandler handles control commands, including periodic RC overrides
 func (d *Drone) controlHandler(ctx context.Context) {
 	defer d.wg.Done()
+
+	// Ticker to periodically send RC override commands
+	rcTicker := time.NewTicker(75 * time.Millisecond)
+	defer rcTicker.Stop()
+
+	// Timer to reset to neutral if no commands are received
+	neutralTimeout := 200 * time.Millisecond
+	neutralTimer := time.NewTimer(neutralTimeout)
 
 	for {
 		select {
@@ -486,38 +501,80 @@ func (d *Drone) controlHandler(ctx context.Context) {
 		case <-d.shutdownCh:
 			return
 		case cmd := <-d.controlCh:
-			switch cmd.Type {
-			case "arm":
-				if d.mavlinkConn != nil {
-					d.mavlinkConn.Arm()
-				}
-			case "disarm":
-				if d.mavlinkConn != nil {
-					d.mavlinkConn.Disarm()
-				}
-			case "rc_override":
+			// When a command is received, handle it.
+			// If it's an RC override, update our state and reset the neutral timer.
+			if cmd.Type == "rc_override" {
 				if d.mavlinkConn != nil && cmd.Data != nil {
 					if rcData, ok := cmd.Data.(mavlink.RCOverride); ok {
 						d.mavlinkConn.SendRCOverride(rcData)
+						d.mu.Lock()
+						d.rcOverride = rcData
+						d.mu.Unlock()
+						// Reset the timer since we got a fresh command
+						if !neutralTimer.Stop() {
+							// Drain the channel if Stop returns false
+							select {
+							case <-neutralTimer.C:
+							default:
+							}
+						}
+						neutralTimer.Reset(neutralTimeout)
 					}
 				}
-			case "set_mode":
-				if d.mavlinkConn != nil && cmd.Data != nil {
-					if mode, ok := cmd.Data.(string); ok {
-						d.mavlinkConn.SetMode(mode)
-					}
-				}
-			case "takeoff":
-				if d.mavlinkConn != nil && cmd.Data != nil {
-					if altitude, ok := cmd.Data.(float64); ok {
-						d.mavlinkConn.SendTakeoff(altitude)
-					}
-				}
-			case "land":
-				if d.mavlinkConn != nil {
-					d.mavlinkConn.SendLand()
-				}
+			} else {
+				// Handle other commands
+				d.executeCommand(cmd)
 			}
+		case <-rcTicker.C:
+			// Periodically send the current RC override values
+			if d.mavlinkConn != nil && d.mavlinkConn.IsConnected() {
+				d.mu.RLock()
+				rcToSend := d.rcOverride
+				d.mu.RUnlock()
+				d.mavlinkConn.SendRCOverride(rcToSend)
+			}
+		case <-neutralTimer.C:
+			// If the timer fires, it means we haven't received an RC command
+			// for a while. Reset to neutral.
+			d.mu.Lock()
+			d.rcOverride = mavlink.RCOverride{
+				Channel1: 1500, // Roll center
+				Channel2: 1500, // Pitch center
+				Channel3: 1500, // Throttle center
+				Channel4: 1500, // Yaw center
+			}
+			d.mu.Unlock()
+		}
+	}
+}
+
+// executeCommand executes non-rc_override commands
+func (d *Drone) executeCommand(cmd ControlCommand) {
+	d.logger.Infof("Executing command: %s, with data: %v", cmd.Type, cmd.Data)
+	switch cmd.Type {
+	case "arm":
+		if d.mavlinkConn != nil {
+			d.mavlinkConn.Arm()
+		}
+	case "disarm":
+		if d.mavlinkConn != nil {
+			d.mavlinkConn.Disarm()
+		}
+	case "set_mode":
+		if d.mavlinkConn != nil && cmd.Data != nil {
+			if mode, ok := cmd.Data.(string); ok {
+				d.mavlinkConn.SetMode(mode)
+			}
+		}
+	case "takeoff":
+		if d.mavlinkConn != nil && cmd.Data != nil {
+			if altitude, ok := cmd.Data.(float64); ok {
+				d.mavlinkConn.SendTakeoff(altitude)
+			}
+		}
+	case "land":
+		if d.mavlinkConn != nil {
+			d.mavlinkConn.SendLand()
 		}
 	}
 }
