@@ -192,7 +192,7 @@ func (s *Simulator) processMessage(msg drone.Message) {
 	// Check for random disconnection
 	if rand.Float64() < s.config.DisconnectProbability {
 		atomic.AddInt64(&s.stats.DisconnectedMessages, 1)
-		s.logger.Infof("Drone %d randomly disconnected", msg.SenderID)
+		s.logger.Debugf("Drone %d randomly disconnected", msg.SenderID)
 
 		return
 	}
