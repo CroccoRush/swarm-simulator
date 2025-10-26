@@ -58,7 +58,7 @@ func NewConnection(udpPort, systemID int) (*Connection, error) {
 		},
 		Dialect:     ardupilotmega.Dialect,
 		OutVersion:  gomavlib.V2, // Use MAVLink v2
-		OutSystemID: uint8(systemID),
+		OutSystemID: 255,
 	}
 
 	err := node.Initialize()
