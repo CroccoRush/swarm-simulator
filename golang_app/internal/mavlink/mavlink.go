@@ -225,27 +225,27 @@ func (c *Connection) Disarm() error {
 
 // SendRCOverride sends RC channel override values using proper MAVLink
 func (c *Connection) SendRCOverride(rc RCOverride) error {
-	return c.node.WriteMessageAll(&ardupilotmega.MessageRcChannelsOverride{
+	return c.node.WriteMessageAll(&common.MessageRcChannelsOverride{
 		TargetSystem:    c.targetSystem,
-		TargetComponent: 1,
+		TargetComponent: 0,
 		Chan1Raw:        rc.Channel1,
 		Chan2Raw:        rc.Channel2,
 		Chan3Raw:        rc.Channel3,
 		Chan4Raw:        rc.Channel4,
-		Chan5Raw:        rc.Channel5,
-		Chan6Raw:        rc.Channel6,
-		Chan7Raw:        rc.Channel7,
-		Chan8Raw:        rc.Channel8,
-		Chan9Raw:        65535, // Invalid/ignored
-		Chan10Raw:       65535, // Invalid/ignored
-		Chan11Raw:       65535, // Invalid/ignored
-		Chan12Raw:       65535, // Invalid/ignored
-		Chan13Raw:       65535, // Invalid/ignored
-		Chan14Raw:       65535, // Invalid/ignored
-		Chan15Raw:       65535, // Invalid/ignored
-		Chan16Raw:       65535, // Invalid/ignored
-		Chan17Raw:       65535, // Invalid/ignored
-		Chan18Raw:       65535, // Invalid/ignored
+		Chan5Raw:        65535, // Invalid/ignored
+		Chan6Raw:        65535, // Invalid/ignored
+		Chan7Raw:        65535, // Invalid/ignored
+		Chan8Raw:        65535, // Invalid/ignored
+		Chan9Raw:        0,     // Invalid/ignored
+		Chan10Raw:       0,     // Invalid/ignored
+		Chan11Raw:       0,     // Invalid/ignored
+		Chan12Raw:       0,     // Invalid/ignored
+		Chan13Raw:       0,     // Invalid/ignored
+		Chan14Raw:       0,     // Invalid/ignored
+		Chan15Raw:       0,     // Invalid/ignored
+		Chan16Raw:       0,     // Invalid/ignored
+		Chan17Raw:       0,     // Invalid/ignored
+		Chan18Raw:       0,     // Invalid/ignored
 	})
 }
 
