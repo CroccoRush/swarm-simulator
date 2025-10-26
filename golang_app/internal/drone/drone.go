@@ -35,9 +35,10 @@ type Drone struct {
 	MessageSize     int
 
 	// Current state
-	position     atomic.Value // stores Position
-	connected    atomic.Bool
-	mavConnected atomic.Bool
+	position       atomic.Value // stores Position
+	connected      atomic.Bool
+	mavConnected   atomic.Bool
+	hasPositionFix atomic.Bool
 
 	// Network connections
 	mavlinkConn *mavlink.Connection
@@ -210,6 +211,11 @@ func (d *Drone) IsConnected() bool {
 	return d.connected.Load()
 }
 
+// HasPositionFix returns true if the drone has received at least one position update from SITL
+func (d *Drone) HasPositionFix() bool {
+	return d.hasPositionFix.Load()
+}
+
 // SendMessage sends a message to the network
 func (d *Drone) SendMessage(data []byte) {
 	if !d.IsConnected() {
@@ -368,6 +374,10 @@ func (d *Drone) mavlinkReader(ctx context.Context) {
 					Timestamp: pos.Timestamp,
 				}
 				d.position.Store(dronePos)
+				if !d.hasPositionFix.Load() {
+					d.hasPositionFix.Store(true)
+					d.logger.Info("Position fix acquired from SITL")
+				}
 				d.logger.Debugf(
 					"Position: %.6f,%.6f,%.1f",
 					pos.Lat/1e7, pos.Lon/1e7, pos.Alt/1000,
