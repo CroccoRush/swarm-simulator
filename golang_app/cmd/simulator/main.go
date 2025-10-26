@@ -17,7 +17,7 @@ func main() {
 	var (
 		configFile = flag.String("config", "config.json", "Configuration file path")
 		mode       = flag.String("mode", "experiment", "Simulator mode: experiment or gui")
-		logLevel   = flag.String("log-level", "warn", "Log level: panic, fatal, error, warn, info, debug, trace")
+		logLevel   = flag.String("log-level", "info", "Log level: panic, fatal, error, warn, info, debug, trace")
 	)
 
 	flag.Parse()
