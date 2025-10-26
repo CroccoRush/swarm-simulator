@@ -3,6 +3,9 @@ eeprom.bin
 mav.*
 terrain/
 logs/
+params/
+!params/copter_template.parm
+mav_*.parm
 
 
 ### binary
