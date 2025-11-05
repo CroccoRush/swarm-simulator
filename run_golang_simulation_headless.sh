@@ -1,8 +1,9 @@
 #!/bin/bash
 
-# Usage: ./run_golang_simulation_headless.sh [SIM_MODE] [CONNECTION_MODE]
+# Usage: ./run_golang_simulation_headless.sh [SIM_MODE] [CONNECTION_MODE] [SCENARIO_FILE]
 # SIM_MODE: experiment, gui (default: experiment)
 # CONNECTION_MODE: direct, qemu (default: direct)
+# SCENARIO_FILE: Path to scenario file (default: scenarios/simple_flight.yaml)
 #
 # This version runs all processes in background without xterm windows
 # Suitable for large number of drones (>128)
@@ -10,13 +11,14 @@
 # Get the simulator mode (default to experiment if not specified)
 SIM_MODE=${1:-experiment}
 CONNECTION_MODE=${2:-direct}  # direct, or qemu
+SCENARIO_FILE=${3:-"scenarios/simple_flight.yaml"}
 
 # Show usage if help requested
 if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
     echo "Swarm Simulator Launch Script (Headless Mode)"
     echo "=============================================="
     echo ""
-    echo "Usage: $0 [SIM_MODE] [CONNECTION_MODE]"
+    echo "Usage: $0 [SIM_MODE] [CONNECTION_MODE] [SCENARIO_FILE]"
     echo ""
     echo "SIM_MODE:"
     echo "  experiment  - Run automated experiment (default)"
@@ -26,8 +28,12 @@ if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
     echo "  direct      - Direct connection to ArduPilot SITL (default)"
     echo "  qemu        - Use QEMU ESP32 emulation layer"
     echo ""
+    echo "SCENARIO_FILE:"
+    echo "  Path to the YAML or JSON scenario file to execute in experiment mode."
+    echo "  (default: \"scenarios/simple_flight.yaml\")"
+    echo ""
     echo "Examples:"
-    echo "  $0 experiment direct   # Standard mode with SITL"
+    echo "  $0 experiment direct   # Standard mode with default scenario"
     echo "  $0 experiment qemu     # QEMU ESP32 emulation"
     echo ""
     echo "Requirements:"
@@ -293,7 +299,14 @@ else
     echo "   Direct connection to SITL instances"
     CONFIG_TO_USE=$CONFIG_FILE
 fi
-./bin/golang-simulator -config $CONFIG_TO_USE -mode $SIM_MODE &
+
+SIMULATOR_CMD="./bin/golang-simulator -config $CONFIG_TO_USE -mode $SIM_MODE"
+if [ "$SIM_MODE" = "experiment" ]; then
+    echo "   Using scenario: $SCENARIO_FILE"
+    SIMULATOR_CMD+=" -scenario $SCENARIO_FILE"
+fi
+
+$SIMULATOR_CMD &
 SIMULATOR_PID=$!  # Saving the simulator Process PID
 
 echo ""

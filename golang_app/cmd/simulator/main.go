@@ -15,12 +15,18 @@ import (
 
 func main() {
 	var (
-		configFile = flag.String("config", "config.json", "Configuration file path")
-		mode       = flag.String("mode", "experiment", "Simulator mode: experiment or gui")
-		logLevel   = flag.String("log-level", "info", "Log level: panic, fatal, error, warn, info, debug, trace")
+		configFile   = flag.String("config", "config.json", "Configuration file path")
+		mode         = flag.String("mode", "experiment", "Simulator mode: experiment or gui")
+		logLevel     = flag.String("log-level", "info", "Log level: panic, fatal, error, warn, info, debug, trace")
+		scenarioFile = flag.String("scenario", "", "Path to the experiment scenario file (required in experiment mode)")
 	)
 
 	flag.Parse()
+
+	// Validate flags
+	if *mode == "experiment" && *scenarioFile == "" {
+		log.Fatal("Error: -scenario flag is required when running in 'experiment' mode")
+	}
 
 	// Load configuration
 	cfg, err := config.LoadConfig(*configFile)
@@ -53,7 +59,7 @@ func main() {
 
 	// Start simulator in background
 	go func() {
-		if err := sim.Run(ctx, *mode); err != nil {
+		if err := sim.Run(ctx, *mode, *scenarioFile); err != nil {
 			log.Printf("Simulator error: %v", err)
 			cancel()
 		}

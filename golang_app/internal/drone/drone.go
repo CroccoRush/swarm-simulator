@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strings"
 	"swarm-simulator/internal/config"
 	"swarm-simulator/internal/logger"
 	"swarm-simulator/internal/mavlink"
@@ -35,10 +36,11 @@ type Drone struct {
 	MessageSize     int
 
 	// Current state
-	position       atomic.Value // stores Position
-	connected      atomic.Bool
-	mavConnected   atomic.Bool
-	hasPositionFix atomic.Bool
+	position          atomic.Value // stores Position
+	connected         atomic.Bool
+	mavConnected      atomic.Bool
+	hasPositionFix    atomic.Bool
+	isLoggingPosition atomic.Bool // By default, logging is off until enabled by a script command
 
 	// Network connections
 	mavlinkConn *mavlink.Connection
@@ -105,6 +107,7 @@ func NewDrone(
 			Channel3: 1500, // Throttle center
 			Channel4: 1500, // Yaw center
 		},
+		isLoggingPosition: atomic.Bool{}, // Initialize the new field
 	}
 
 	// Create log file
@@ -132,6 +135,8 @@ func NewDrone(
 		Heading:   0,
 		Timestamp: time.Now(),
 	})
+
+	d.isLoggingPosition.Store(false) // By default, logging is off until enabled by a script command
 
 	return d
 }
@@ -383,7 +388,7 @@ func (d *Drone) mavlinkReader(ctx context.Context) {
 					pos.Lat/1e7, pos.Lon/1e7, pos.Alt/1000,
 				)
 				// Log to file
-				if d.logFile != nil {
+				if d.logFile != nil && d.isLoggingPosition.Load() {
 					logLine := fmt.Sprintf("%d,%d,%d,%d,%d\n",
 						time.Now().UnixNano(),
 						int64(pos.Lat),
@@ -601,4 +606,40 @@ func (d *Drone) SendControlCommand(cmd ControlCommand) {
 	default:
 		d.logger.Warnf("Control queue full, dropping command: %s", cmd.Type)
 	}
+}
+
+// StartLogging enables logging for a specific topic
+func (d *Drone) StartLogging(topic string) error {
+	if topic == "position" {
+		d.isLoggingPosition.Store(true)
+		d.logger.Infof("Drone %d: Started position logging", d.ID)
+		return nil
+	}
+	return fmt.Errorf("unknown logging topic: %s", topic)
+}
+
+// StopLogging disables logging for a specific topic
+func (d *Drone) StopLogging(topic string) error {
+	if topic == "position" {
+		d.isLoggingPosition.Store(false)
+		d.logger.Infof("Drone %d: Stopped position logging", d.ID)
+		return nil
+	}
+	return fmt.Errorf("unknown logging topic: %s", topic)
+}
+
+// WriteLog writes a custom marker to the position log file
+func (d *Drone) WriteLog(marker string) error {
+	if d.logFile == nil {
+		return fmt.Errorf("log file for drone %d is not open", d.ID)
+	}
+	// Sanitize marker to ensure it doesn't break CSV format
+	sanitizedMarker := strings.ReplaceAll(marker, ",", ";")
+	timestamp := time.Now().UTC().Format(time.RFC3339Nano)
+	logLine := fmt.Sprintf("%s,MARK,%s\n", timestamp, sanitizedMarker)
+
+	if _, err := d.logFile.WriteString(logLine); err != nil {
+		return fmt.Errorf("failed to write marker to log for drone %d: %w", d.ID, err)
+	}
+	return nil
 }

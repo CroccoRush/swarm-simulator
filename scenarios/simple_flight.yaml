@@ -1,0 +1,86 @@
+name: "Simple Formation Flight"
+description: "A basic test scenario using the duration parameter for maneuvers and explicit wait actions."
+
+actions:
+  # Phase 1: Preparation
+  - command: wait
+    duration: 60.0
+
+  - command: start_log
+    topic: "position"
+    drones: all
+
+  - command: wait
+    duration: 0.5 # Small delay to ensure files are ready
+
+  - command: set_mode
+    mode: "GUIDED"
+    drones: all
+
+  - command: wait
+    duration: 1.0
+
+  - command: arm
+    drones: all
+
+  - command: wait
+    duration: 2.0
+
+  - command: takeoff
+    altitude: 10.0
+    drones: all
+
+  - command: wait
+    duration: 10.0
+
+  # Phase 2: Flight Pattern
+  - command: set_mode
+    mode: "POSHOLD"
+    drones: all
+
+  - command: wait
+    duration: 1.0
+
+  - command: rc_override
+    drones: all
+    pitch: 1200 # Fly forward
+    duration: 15.0
+
+  - command: rc_override
+    drones: all
+    pitch: 1400 # Slow down
+    yaw: 1550   # Turn right
+    duration: 10.0
+
+  - command: rc_override
+    drones: all
+    pitch: 1200 # Fly forward again
+    duration: 15.0
+
+  - command: rc_override
+    drones: all
+    pitch: 1500 # Hover
+    yaw: 1500
+    duration: 2.0
+
+  - command: write_log
+    marker: "Finished flight pattern"
+    drones: all
+
+  # Phase 3: Landing
+  - command: set_mode
+    mode: "LAND"
+    drones: all
+
+  - command: wait
+    duration: 15.0
+
+  - command: disarm
+    drones: all
+
+  - command: wait
+    duration: 1.0
+
+  - command: stop_log
+    topic: "position"
+    drones: all

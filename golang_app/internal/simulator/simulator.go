@@ -8,6 +8,7 @@ import (
 	"swarm-simulator/internal/logger"
 	"swarm-simulator/internal/mavlink"
 	"swarm-simulator/internal/network"
+	"swarm-simulator/internal/scenario"
 	"sync"
 	"time"
 
@@ -72,7 +73,7 @@ func NewSimulator(cfg *config.Config, logLevel *string) (*Simulator, error) {
 }
 
 // Run starts the simulator in the specified mode
-func (s *Simulator) Run(ctx context.Context, mode string) error {
+func (s *Simulator) Run(ctx context.Context, mode string, scenarioPath string) error {
 	s.logger.Infof("Starting simulator in %s mode", mode)
 
 	// Start network simulation
@@ -101,7 +102,7 @@ func (s *Simulator) Run(ctx context.Context, mode string) error {
 		s.experimentMode = true
 		s.wg.Add(1)
 
-		go s.runExperimentMode(ctx)
+		go s.runExperimentMode(ctx, scenarioPath)
 	case "gui":
 		s.experimentMode = false
 		s.wg.Add(1)
@@ -158,25 +159,34 @@ func (s *Simulator) Shutdown(ctx context.Context) error {
 }
 
 // runExperimentMode runs the simulator in experiment mode
-func (s *Simulator) runExperimentMode(ctx context.Context) {
+func (s *Simulator) runExperimentMode(ctx context.Context, scenarioPath string) {
 	defer s.wg.Done()
 
 	// Wait for initialization
-	s.logger.Info("Waiting for initialization...")
-	time.Sleep(15 * time.Second)
+	s.logger.Info("Waiting for MAVLink connections and position fixes...")
+	if err := s.waitForDronesReady(ctx); err != nil {
+		s.logger.Errorf("Drones not ready for experiment: %v", err)
+		return
+	}
+	s.logger.Info("All drones are connected and have a position fix.")
 
-	s.logger.Info("Running in experiment mode")
-
-	// Get experiment parameters from environment or use defaults
-	expParams := s.getExperimentParameters()
-
-	// Run experiment sequence
-	if err := s.runExperimentSequence(ctx, expParams); err != nil {
-		s.logger.Errorf("Experiment failed: %v", err)
+	// Load the scenario
+	s.logger.Infof("Loading scenario from: %s", scenarioPath)
+	scen, err := scenario.LoadScenario(scenarioPath)
+	if err != nil {
+		s.logger.Errorf("Failed to load scenario: %v", err)
 		return
 	}
 
-	s.logger.Infof("Experiment completed successfully")
+	s.logger.Infof("Running scenario: '%s'", scen.Name)
+
+	// Run experiment sequence from scenario
+	if err := s.executeScenario(ctx, scen); err != nil {
+		s.logger.Errorf("Experiment scenario failed: %v", err)
+		return
+	}
+
+	s.logger.Infof("Experiment scenario '%s' completed successfully", scen.Name)
 }
 
 // runGUIMode runs the simulator in GUI mode (placeholder)
@@ -216,6 +226,299 @@ func (s *Simulator) getExperimentParameters() ExperimentData {
 			"formation": "grid",
 		},
 	}
+}
+
+// executeScenario runs the main experiment sequence based on a loaded scenario
+func (s *Simulator) executeScenario(ctx context.Context, scen *scenario.Scenario) error {
+	s.logger.Infof("Executing %d actions from scenario '%s'", len(scen.Actions), scen.Name)
+
+	for i, action := range scen.Actions {
+		s.logger.Infof("--- Action %d/%d: Executing command '%v' ---", i, len(scen.Actions), action["command"])
+
+		// Extract command
+		command, ok := action["command"].(string)
+		if !ok {
+			return fmt.Errorf("action %d has a missing or invalid 'command' field", i)
+		}
+
+		// Handle target drones
+		targetDrones, err := s.getTargetDrones(action)
+		if err != nil {
+			return fmt.Errorf("failed to get target drones for action %d: %w", i, err)
+		}
+
+		// Execute command
+		switch command {
+		case "set_mode":
+			mode, ok := action["mode"].(string)
+			if !ok {
+				return fmt.Errorf("action %d ('set_mode'): missing or invalid 'mode' parameter", i)
+			}
+			for _, d := range targetDrones {
+				d.SendControlCommand(drone.ControlCommand{Type: "set_mode", Data: mode})
+			}
+
+		case "arm":
+			for _, d := range targetDrones {
+				d.SendControlCommand(drone.ControlCommand{Type: "arm"})
+			}
+
+		case "disarm":
+			for _, d := range targetDrones {
+				d.SendControlCommand(drone.ControlCommand{Type: "disarm"})
+			}
+
+		case "takeoff":
+			alt, ok := action["altitude"].(float64)
+			if !ok {
+				return fmt.Errorf("action %d ('takeoff'): missing or invalid 'altitude' parameter", i)
+			}
+			for _, d := range targetDrones {
+				d.SendControlCommand(drone.ControlCommand{Type: "takeoff", Data: alt})
+			}
+
+		case "land":
+			for _, d := range targetDrones {
+				d.SendControlCommand(drone.ControlCommand{Type: "land"})
+			}
+
+		case "rc_override":
+			rc, err := s.parseRCOverride(action)
+			if err != nil {
+				return fmt.Errorf("action %d ('rc_override'): %w", i, err)
+			}
+			// Check for duration. If present, execute as a maneuver.
+			if durationVal, ok := action["duration"]; ok {
+				duration, ok := durationVal.(float64)
+				if !ok {
+					return fmt.Errorf("action %d ('rc_override'): invalid 'duration' type", i)
+				}
+				s.executeRCOverrideForDuration(targetDrones, rc, time.Duration(duration*float64(time.Second)))
+			} else {
+				// If no duration, send the command just once.
+				for _, d := range targetDrones {
+					d.SendControlCommand(drone.ControlCommand{Type: "rc_override", Data: rc})
+				}
+			}
+
+		case "wait":
+			duration, ok := action["duration"].(float64) // YAML/JSON parsers often use float64 for numbers
+			if !ok {
+				return fmt.Errorf("action %d ('wait'): missing or invalid 'duration' parameter", i)
+			}
+			s.logger.Infof("Waiting for %.2f seconds...", duration)
+			time.Sleep(time.Duration(duration * float64(time.Second)))
+
+		case "start_log":
+			topic, ok := action["topic"].(string)
+			if !ok {
+				return fmt.Errorf("action %d ('start_log'): missing or invalid 'topic' parameter", i)
+			}
+			for _, d := range targetDrones {
+				if err := d.StartLogging(topic); err != nil {
+					s.logger.Warnf("Failed to start logging for drone %d: %v", d.ID, err)
+				}
+			}
+
+		case "stop_log":
+			topic, ok := action["topic"].(string)
+			if !ok {
+				return fmt.Errorf("action %d ('stop_log'): missing or invalid 'topic' parameter", i)
+			}
+			for _, d := range targetDrones {
+				if err := d.StopLogging(topic); err != nil {
+					s.logger.Warnf("Failed to stop logging for drone %d: %v", d.ID, err)
+				}
+			}
+
+		case "write_log":
+			marker, ok := action["marker"].(string)
+			if !ok {
+				return fmt.Errorf("action %d ('write_log'): missing or invalid 'marker' parameter", i)
+			}
+			for _, d := range targetDrones {
+				if err := d.WriteLog(marker); err != nil {
+					s.logger.Warnf("Failed to write log marker for drone %d: %v", d.ID, err)
+				}
+			}
+
+		default:
+			return fmt.Errorf("action %d: unknown command '%s'", i, command)
+		}
+
+	}
+	return nil
+}
+
+// executeRCOverrideForDuration sends RC override commands to specified drones for a duration.
+func (s *Simulator) executeRCOverrideForDuration(targets []*drone.Drone, rc mavlink.RCOverride, duration time.Duration) {
+	s.logger.Infof(
+		"Executing RC command for %.1fs: Roll=%d, Pitch=%d, Throttle=%d, Yaw=%d",
+		duration.Seconds(), rc.Channel1, rc.Channel2, rc.Channel3, rc.Channel4,
+	)
+
+	// The loop frequency should be high enough to avoid failsafe
+	ticker := time.NewTicker(75 * time.Millisecond)
+	defer ticker.Stop()
+
+	ctx, cancel := context.WithTimeout(context.Background(), duration)
+	defer cancel()
+
+loop:
+	for {
+		select {
+		case <-ctx.Done():
+			break loop
+		case <-ticker.C:
+			for _, d := range targets {
+				d.SendControlCommand(drone.ControlCommand{
+					Type: "rc_override",
+					Data: rc,
+				})
+			}
+		}
+	}
+
+	// Return to center after the maneuver is complete
+	s.logger.Info("Maneuver complete. Sending neutral RC command.")
+	centerRC := mavlink.RCOverride{
+		Channel1: 1500, Channel2: 1500, Channel3: 1500, Channel4: 1500,
+	}
+	for _, d := range targets {
+		d.SendControlCommand(drone.ControlCommand{
+			Type: "rc_override",
+			Data: centerRC,
+		})
+	}
+}
+
+// getTargetDrones parses the 'drones' field from an action to determine which drones to command.
+func (s *Simulator) getTargetDrones(action scenario.Action) ([]*drone.Drone, error) {
+	dronesField, ok := action["drones"]
+	if !ok {
+		// Default to all drones if not specified
+		return s.drones, nil
+	}
+
+	// Handle "all" keyword
+	if droneStr, ok := dronesField.(string); ok && droneStr == "all" {
+		return s.drones, nil
+	}
+
+	// Handle list of IDs
+	if droneIDs, ok := dronesField.([]interface{}); ok {
+		var targets []*drone.Drone
+		for _, idInterface := range droneIDs {
+			idFloat, ok := idInterface.(float64) // Numbers from JSON/YAML are often float64
+			if !ok {
+				return nil, fmt.Errorf("invalid drone ID type in list: %T", idInterface)
+			}
+			id := int(idFloat)
+			found := false
+			for _, d := range s.drones {
+				if d.ID == id {
+					targets = append(targets, d)
+					found = true
+					break
+				}
+			}
+			if !found {
+				return nil, fmt.Errorf("drone with ID %d not found", id)
+			}
+		}
+		return targets, nil
+	}
+
+	return nil, fmt.Errorf("invalid 'drones' field format: must be 'all' or a list of IDs")
+}
+
+// parseUint16 converts an interface{} to uint16, accepting int, uint16 or float64.
+func parseUint16(v interface{}) (uint16, bool) {
+	if i, ok := v.(int); ok {
+		return uint16(i), true
+	}
+	if f, ok := v.(uint16); ok {
+		return f, true
+	}
+	if f, ok := v.(float64); ok {
+		return uint16(f), true
+	}
+	return 0, false
+}
+
+// parseRCOverride parses RC override values from a scenario action.
+func (s *Simulator) parseRCOverride(action scenario.Action) (mavlink.RCOverride, error) {
+	rc := mavlink.RCOverride{
+		Channel1: 1500, // Roll center
+		Channel2: 1500, // Pitch center
+		Channel3: 1500, // Throttle center
+		Channel4: 1500, // Yaw center
+	}
+
+	if val, ok := action["roll"]; ok {
+		if f, ok := parseUint16(val); ok {
+			rc.Channel1 = uint16(f)
+		} else {
+			return rc, fmt.Errorf("invalid 'roll' value type: %T", val)
+		}
+	}
+	if val, ok := action["pitch"]; ok {
+		if f, ok := parseUint16(val); ok {
+			rc.Channel2 = uint16(f)
+		} else {
+			return rc, fmt.Errorf("invalid 'pitch' value type: %T", val)
+		}
+	}
+	if val, ok := action["throttle"]; ok {
+		if f, ok := parseUint16(val); ok {
+			rc.Channel3 = uint16(f)
+		} else {
+			return rc, fmt.Errorf("invalid 'throttle' value type: %T", val)
+		}
+	}
+	if val, ok := action["yaw"]; ok {
+		if f, ok := parseUint16(val); ok {
+			rc.Channel4 = uint16(f)
+		} else {
+			return rc, fmt.Errorf("invalid 'yaw' value type: %T", val)
+		}
+	}
+
+	return rc, nil
+}
+
+// waitForDronesReady waits for all drones to be connected and have a position fix.
+func (s *Simulator) waitForDronesReady(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second) // Generous timeout
+	defer cancel()
+
+	var wg sync.WaitGroup
+	for _, d := range s.drones {
+		wg.Add(1)
+		go func(dr *drone.Drone) {
+			defer wg.Done()
+			ticker := time.NewTicker(200 * time.Millisecond)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					s.logger.Errorf("Drone %d failed to get ready: %v", dr.ID, ctx.Err())
+					return
+				case <-ticker.C:
+					if dr.IsConnected() && dr.HasPositionFix() {
+						return
+					}
+				}
+			}
+		}(d)
+	}
+	wg.Wait()
+
+	if ctx.Err() != nil {
+		return fmt.Errorf("one or more drones did not become ready in time")
+	}
+
+	return nil
 }
 
 // runExperimentSequence runs the main experiment sequence
