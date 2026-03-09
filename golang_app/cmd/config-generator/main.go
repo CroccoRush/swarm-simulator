@@ -114,9 +114,9 @@ func generatePositions(
 	numDrones int, formation string, spacing float64,
 ) []config.Position {
 	basePos := config.Position{
-		Lat: 59.756450,
-		Lon: 30.200250,
-		Alt: 30,
+		Lat: 0.0001,
+		Lon: 0.0001,
+		Alt: 0,
 	}
 
 	positions := make([]config.Position, numDrones)

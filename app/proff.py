@@ -1,5 +1,6 @@
 import math
 from collections import defaultdict
+import io
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,7 +18,7 @@ TARGET_POSITIONS = [
     [EXP_DISTANCE, 0],
     [EXP_DISTANCE, EXP_DISTANCE],
 ]
-DRONE_COUNT = 4
+DRONE_COUNT = 9
 EARTH_RADIUS = 6_372_795  # Earth radius in meters
 
 # Colors for each drone and experiment
@@ -176,15 +177,35 @@ def create_time_to_data(combined_data, num_drones):
 
 def get_data(num_drones: int, suffix: str = ""):
     data_list = list()
+    all_markers = []
     lat0, lon0 = None, None  # reference point for distance calculation
     for id in range(num_drones):
-        one_data = pd.read_csv(
-            f"./logs/drone_{id}_position{suffix}.csv", sep=","
-        )
+        filepath = f"./logs/drone_{id}_position{suffix}.csv"
+        with open(filepath, "r") as f:
+            lines = f.readlines()
+
+        csv_lines = []
+        if lines:
+            csv_lines.append(lines[0])  # Header
+            for line in lines[1:]:
+                if ",MARK," in line:
+                    parts = line.strip().split(",", 2)
+                    if len(parts) >= 3:
+                        try:
+                            # Parse ISO timestamp to nanoseconds
+                            ts = pd.Timestamp(parts[0]).value
+                            msg = parts[2]
+                            all_markers.append((ts, msg))
+                        except Exception as e:
+                            print(f"Error parsing marker line: {line.strip()} - {e}")
+                else:
+                    csv_lines.append(line)
+
+        one_data = pd.read_csv(io.StringIO("".join(csv_lines)), sep=",")
         one_data = one_data.loc[
             (one_data["lat"] != 0) & (one_data["lon"] != 0)
         ]
-        if lat0 is None and lon0 is None:
+        if lat0 is None and lon0 is None and not one_data.empty:
             lat0, lon0 = (
                 one_data.iloc[0]["lat"] * 1e-7,
                 one_data.iloc[0]["lon"] * 1e-7,
@@ -212,6 +233,21 @@ def get_data(num_drones: int, suffix: str = ""):
         & pd.notna(combined_data["x_3"])
     ]
     starting_time = combined_data.iloc[0]["time"]
+
+    if all_markers:
+        print("\n" + "=" * 30)
+        print("EXPERIMENT MARKERS")
+        print("=" * 30)
+        markers_by_msg = defaultdict(list)
+        for ts, msg in all_markers:
+            markers_by_msg[msg].append(ts)
+
+        for msg, timestamps in markers_by_msg.items():
+            avg_ts = np.mean(timestamps)
+            rel_time = (avg_ts - starting_time) / 1e9
+            print(f"[{rel_time:>6.2f}s] {msg}")
+        print("=" * 30 + "\n")
+
     combined_data[["time"]] = combined_data.apply(
         lambda row: pd.Series(row["time"] - starting_time), axis=1
     )
@@ -272,7 +308,7 @@ def plot_trajectories(time_to_data1, time_to_data2, num_drones):
         ax.plot(
             drone_x1[i],
             drone_y1[i],
-            color=DRONE_COLORS[i],
+            color=DRONE_COLORS[i % len(DRONE_COLORS)],
             label=f"Drone {i} (LVP)",
             linewidth=2,
         )
@@ -280,7 +316,7 @@ def plot_trajectories(time_to_data1, time_to_data2, num_drones):
         ax.scatter(
             drone_x1[i][0],
             drone_y1[i][0],
-            color=DRONE_COLORS[i],
+            color=DRONE_COLORS[i % len(DRONE_COLORS)],
             marker="o",
             s=100,
             edgecolor="black",
@@ -290,7 +326,7 @@ def plot_trajectories(time_to_data1, time_to_data2, num_drones):
         ax.scatter(
             drone_x1[i][-1],
             drone_y1[i][-1],
-            color=DRONE_COLORS[i],
+            color=DRONE_COLORS[i % len(DRONE_COLORS)],
             marker="s",
             s=100,
             edgecolor="black",
@@ -302,7 +338,7 @@ def plot_trajectories(time_to_data1, time_to_data2, num_drones):
         ax.plot(
             drone_x2[i],
             drone_y2[i],
-            color=DRONE_COLORS[i],
+            color=DRONE_COLORS[i % len(DRONE_COLORS)],
             linestyle="--",
             label=f"Drone {i} (ALVP)",
             linewidth=2,
@@ -311,7 +347,7 @@ def plot_trajectories(time_to_data1, time_to_data2, num_drones):
         ax.scatter(
             drone_x2[i][0],
             drone_y2[i][0],
-            color=DRONE_COLORS[i],
+            color=DRONE_COLORS[i % len(DRONE_COLORS)],
             marker="o",
             s=100,
             edgecolor="black",
@@ -321,7 +357,7 @@ def plot_trajectories(time_to_data1, time_to_data2, num_drones):
         ax.scatter(
             drone_x2[i][-1],
             drone_y2[i][-1],
-            color=DRONE_COLORS[i],
+            color=DRONE_COLORS[i % len(DRONE_COLORS)],
             marker="s",
             s=100,
             edgecolor="black",
@@ -1289,7 +1325,7 @@ def drone_paths(target_exp):
         try:
             # Get data for all drones for the experiment
             time_to_data = get_data(
-                DRONE_COUNT, f"_set{param_set}_exp{target_exp}"
+                DRONE_COUNT, ""#f"_set{param_set}_exp{target_exp}"
             )
 
             # Convert data to a format convenient for building trajectories
@@ -1305,7 +1341,7 @@ def drone_paths(target_exp):
             min_time = sorted_times[0]
             max_time = sorted_times[-1]
             time_range = max_time - min_time
-            start_time = min_time + time_range // 2
+            start_time = min_time# + time_range // 2
 
             # Collect data for each drone's trajectory
             for time in sorted_times:
