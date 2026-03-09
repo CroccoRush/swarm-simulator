@@ -12,6 +12,12 @@
 SIM_MODE=${1:-experiment}
 CONNECTION_MODE=${2:-direct}  # direct, or qemu
 SCENARIO_FILE=${3:-"scenarios/simple_flight.yaml"}
+CONFIG_FILE=${CONFIG_FILE:-"config.json"}
+MAVPROXY_IMPL=${MAVPROXY_IMPL:-go}  # python, go
+MAVPROXY_TOPOLOGY=${MAVPROXY_TOPOLOGY:-per-instance}  # per-instance, single-process
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
 # Show usage if help requested
 if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
@@ -32,6 +38,11 @@ if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
     echo "  Path to the YAML or JSON scenario file to execute in experiment mode."
     echo "  (default: \"scenarios/simple_flight.yaml\")"
     echo ""
+    echo "Environment:"
+    echo "  CONFIG_FILE=path"
+    echo "  MAVPROXY_IMPL=python|go"
+    echo "  MAVPROXY_TOPOLOGY=per-instance|single-process"
+    echo ""
     echo "Examples:"
     echo "  $0 experiment direct   # Standard mode with default scenario"
     echo "  $0 experiment qemu     # QEMU ESP32 emulation"
@@ -50,6 +61,7 @@ export PATH=$PATH:/home/kiselyovvld/.local/bin  # Needed for mavproxy
 export PATH=$PATH:/usr/local/go/bin  # Needed for Golang
 
 SITL_BIN="./sitl/arducopter.bin"
+MAVPROXY_SESSION_CONFIG=""
 
 # Build the Go simulator first
 echo "Building Go simulator..."
@@ -62,13 +74,12 @@ cd ..
 echo "Go simulator built successfully"
 
 # Loading the configuration
-CONFIG_FILE="config.json"
 if [ ! -f "$CONFIG_FILE" ]; then
     echo "Configuration file $CONFIG_FILE not found"
     exit 1
 fi
 
-DRONES=$(jq -c '.drones[]' $CONFIG_FILE)
+DRONES=$(jq -c '.drones[]' "$CONFIG_FILE")
 if [ $? -ne 0 ]; then
     echo "Failed to parse configuration file"
     exit 1
@@ -76,6 +87,8 @@ fi
 
 DRONE_COUNT=$(echo "$DRONES" | wc -l)
 echo "Configuration loaded: $DRONE_COUNT drones"
+echo "Bridge implementation: $MAVPROXY_IMPL"
+echo "Bridge topology: $MAVPROXY_TOPOLOGY"
 
 # Validate connection mode
 if [[ ! "$CONNECTION_MODE" =~ ^(direct|qemu)$ ]]; then
@@ -97,7 +110,7 @@ case $CONNECTION_MODE in
         ;;
 esac
 
-# Real mode - start ArduPilot SITL and MAVProxy
+# Real mode - start ArduPilot SITL and bridge
 echo "HEADLESS MODE - Starting ArduPilot SITL instances in background..."
 
 # Create directories for logs
@@ -110,25 +123,21 @@ for DRONE_CFG in $DRONES; do
     ID=$(echo $DRONE_CFG | jq -r '.id')
     UDP_PORT=$(echo $DRONE_CFG | jq -r '.udp_port')
 
-    # Extract Serial5 configuration (new format)
     SERIAL5_TYPE=$(echo $DRONE_CFG | jq -r '.serial5.type // empty')
     SERIAL5_PORT=$(echo $DRONE_CFG | jq -r '.serial5.port // empty')
     SERIAL5_PATH=$(echo $DRONE_CFG | jq -r '.serial5.path // empty')
 
-    # Backward compatibility: check old serial5_port field
     if [ "$SERIAL5_TYPE" = "" ] || [ "$SERIAL5_TYPE" = "null" ]; then
         OLD_SERIAL5_PORT=$(echo $DRONE_CFG | jq -r '.serial5_port // empty')
         if [ "$OLD_SERIAL5_PORT" != "" ] && [ "$OLD_SERIAL5_PORT" != "null" ]; then
             SERIAL5_TYPE="tcp"
             SERIAL5_PORT=$OLD_SERIAL5_PORT
         else
-            # Default fallback
             SERIAL5_TYPE="tcp"
             SERIAL5_PORT=$((5765 + ID))
         fi
     fi
 
-    # Build Serial5 argument based on type
     case $SERIAL5_TYPE in
         "unix")
             SERIAL5_ARG="--serial5=unix:$SERIAL5_PATH:wait"
@@ -145,7 +154,6 @@ for DRONE_CFG in $DRONES; do
     ALT=$(echo $DRONE_CFG | jq -r '.initial_position.alt')
     PARAMS_PATH="./params/copter_$ID.parm"
 
-    # Check if params file exists
     if [ ! -f "$PARAMS_PATH" ]; then
         PARAMS_ARG=""
     else
@@ -160,7 +168,6 @@ for DRONE_CFG in $DRONES; do
         echo "   Starting drone $ID/$DRONE_COUNT at ($LAT, $LON, $ALT) on UDP port $UDP_PORT and Serial5 $SERIAL5_INFO"
     fi
 
-    # Run SITL in background, redirect output to log file
     $COMMAND > logs/drone_$ID.log 2>&1 &
     SITL_PIDS+=($!)
 done
@@ -171,32 +178,77 @@ echo "Started ${#SITL_PIDS[@]} ArduPilot SITL instances"
 echo "Waiting for SITL initialization..."
 sleep 5
 
-# Running MAVProxy for each drone
+# Running bridge instances
 MAVPROXY_PIDS=()
-echo "Starting MAVProxy instances..."
 
-for DRONE_CFG in $DRONES; do
-    ID=$(echo $DRONE_CFG | jq -r '.id')
-    UDP_PORT=$(echo $DRONE_CFG | jq -r '.udp_port')
-    MASTER_PORT=$((5760 + 10 * ID))
-    SITL_PORT=$((5501 + ID))
+if [ "$MAVPROXY_IMPL" = "go" ] && [ "$MAVPROXY_TOPOLOGY" = "single-process" ]; then
+    echo "Starting single go-mavproxy instance for all drones..."
+    MAVPROXY_SESSION_CONFIG="logs/go_mavproxy_sessions.json"
+    printf '[\n' > "$MAVPROXY_SESSION_CONFIG"
+    FIRST=1
 
-    MAVPROXY_CORE=$(( (ID * 2 + 1) % $(nproc) ))
-    MAVPROXY_COMMAND="taskset -c $MAVPROXY_CORE mavproxy.py --daemon --master tcp:127.0.0.1:$MASTER_PORT --sitl 127.0.0.1:$SITL_PORT --out udp:0.0.0.0:$UDP_PORT --out udp:0.0.0.0:$((15000 + ID))"
+    for DRONE_CFG in $DRONES; do
+        ID=$(echo $DRONE_CFG | jq -r '.id')
+        UDP_PORT=$(echo $DRONE_CFG | jq -r '.udp_port')
+        MASTER_PORT=$((5760 + 10 * ID))
+        SITL_PORT=$((5501 + ID))
 
-    if [ $((ID % 20)) -eq 0 ]; then
-        echo "   Starting MAVProxy $ID/$DRONE_COUNT (Go Simulator UDP:$UDP_PORT, Mission Planner UDP:$((15000 + ID)))"
-    fi
+        if [ $FIRST -eq 0 ]; then
+            printf ',\n' >> "$MAVPROXY_SESSION_CONFIG"
+        fi
+        FIRST=0
 
-    # Run MAVProxy in background, redirect output to log file
-    $MAVPROXY_COMMAND > logs/mavproxy_$ID.log 2>&1 &
+        cat >> "$MAVPROXY_SESSION_CONFIG" <<JSON
+  {
+    "name": "drone_$ID",
+    "dialect": "ardupilotmega",
+    "streamrate": 10,
+    "continue_on_disconnect": true,
+    "masters": ["tcp://127.0.0.1:$MASTER_PORT"],
+    "outs": ["udp:0.0.0.0:$UDP_PORT", "udp:0.0.0.0:$((15000 + ID))"],
+    "sitl": "127.0.0.1:$SITL_PORT",
+    "app_logfile": "logs/mavproxy_$ID.app.log",
+    "message_logfile": "logs/mavproxy_$ID.messages.log",
+    "logfile": "logs/mavproxy_$ID.tlog",
+    "loglevel": "debug"
+  }
+JSON
+    done
+    printf '\n]\n' >> "$MAVPROXY_SESSION_CONFIG"
+
+    MAVPROXY_CORE=1
+    MAVPROXY_COMMAND="taskset -c $MAVPROXY_CORE ./bin/go-mavproxy --session-config $MAVPROXY_SESSION_CONFIG --loglevel debug"
+    echo "   Command: $MAVPROXY_COMMAND"
+    $MAVPROXY_COMMAND > logs/mavproxy_single.log 2>&1 &
     MAVPROXY_PIDS+=($!)
-done
+else
+    echo "Starting bridge instances..."
+    for DRONE_CFG in $DRONES; do
+        ID=$(echo $DRONE_CFG | jq -r '.id')
+        UDP_PORT=$(echo $DRONE_CFG | jq -r '.udp_port')
+        MASTER_PORT=$((5760 + 10 * ID))
+        SITL_PORT=$((5501 + ID))
 
-echo "Started ${#MAVPROXY_PIDS[@]} MAVProxy instances"
+        MAVPROXY_CORE=$(( (ID * 2 + 1) % $(nproc) ))
+        if [ "$MAVPROXY_IMPL" = "go" ]; then
+            MAVPROXY_COMMAND="taskset -c $MAVPROXY_CORE ./bin/go-mavproxy --master tcp://127.0.0.1:$MASTER_PORT --sitl 127.0.0.1:$SITL_PORT --out udp:0.0.0.0:$UDP_PORT --out udp:0.0.0.0:$((15000 + ID)) --dialect ardupilotmega --streamrate 10 --loglevel debug --app-logfile logs/mavproxy_$ID.app.log --message-logfile logs/mavproxy_$ID.messages.log --logfile logs/mavproxy_$ID.tlog"
+        else
+            MAVPROXY_COMMAND="taskset -c $MAVPROXY_CORE mavproxy.py --daemon --master tcp:127.0.0.1:$MASTER_PORT --sitl 127.0.0.1:$SITL_PORT --out udp:0.0.0.0:$UDP_PORT --out udp:0.0.0.0:$((15000 + ID))"
+        fi
 
-# Time for MAVProxy initialization
-echo "Waiting for MAVProxy initialization..."
+        if [ $((ID % 20)) -eq 0 ]; then
+            echo "   Starting bridge $ID/$DRONE_COUNT ($MAVPROXY_IMPL/$MAVPROXY_TOPOLOGY)"
+        fi
+
+        $MAVPROXY_COMMAND > logs/mavproxy_$ID.log 2>&1 &
+        MAVPROXY_PIDS+=($!)
+    done
+fi
+
+echo "Started ${#MAVPROXY_PIDS[@]} bridge instances"
+
+# Time for bridge initialization
+echo "Waiting for bridge initialization..."
 sleep 5
 
 # Start QEMU ESP32 emulators if in QEMU mode
@@ -204,14 +256,12 @@ QEMU_PIDS=()
 if [ "$QEMU_MODE" = "true" ]; then
     echo "Starting QEMU ESP32 emulators..."
 
-    # Check if firmware exists
     FIRMWARE_PATH="./qemu/firmware.bin"
     if [ ! -f "$FIRMWARE_PATH" ]; then
         echo "ESP32 firmware not found at $FIRMWARE_PATH"
         echo "Place your ESP32 firmware at $FIRMWARE_PATH"
         echo "Creating placeholder firmware for testing..."
         mkdir -p qemu
-        # Create a placeholder firmware file for testing
         dd if=/dev/zero of="$FIRMWARE_PATH" bs=1M count=1 2>/dev/null
         echo "Using placeholder firmware - QEMU may not work correctly"
     else
@@ -220,13 +270,10 @@ if [ "$QEMU_MODE" = "true" ]; then
 
     for DRONE_CFG in $DRONES; do
         ID=$(echo $DRONE_CFG | jq -r '.id')
-
-        # Extract Serial5 configuration for QEMU connection to SITL
         SERIAL5_TYPE=$(echo $DRONE_CFG | jq -r '.serial5.type // empty')
         SERIAL5_PORT=$(echo $DRONE_CFG | jq -r '.serial5.port // empty')
         SERIAL5_PATH=$(echo $DRONE_CFG | jq -r '.serial5.path // empty')
 
-        # Backward compatibility
         if [ "$SERIAL5_TYPE" = "" ] || [ "$SERIAL5_TYPE" = "null" ]; then
             OLD_SERIAL5_PORT=$(echo $DRONE_CFG | jq -r '.serial5_port // empty')
             if [ "$OLD_SERIAL5_PORT" != "" ] && [ "$OLD_SERIAL5_PORT" != "null" ]; then
@@ -238,22 +285,17 @@ if [ "$QEMU_MODE" = "true" ]; then
             fi
         fi
 
-        # QEMU network port for Go-simulator communication
         QEMU_NET_PORT=$((6000 + ID))
 
-        # Build QEMU command with network configuration
         case $SERIAL5_TYPE in
             "unix")
-                # For Unix sockets, we need to set up QEMU to connect to the socket
                 QEMU_SERIAL_ARG="-chardev socket,id=serial5,path=$SERIAL5_PATH -device esp32-uart,chardev=serial5"
                 ;;
             "tcp"|*)
-                # For TCP, QEMU connects to SITL's TCP server
                 QEMU_SERIAL_ARG="-chardev socket,id=serial5,host=127.0.0.1,port=$SERIAL5_PORT -device esp32-uart,chardev=serial5"
                 ;;
         esac
 
-        # QEMU command with network forwarding for Go-simulator communication
         CPU_CORE=$((ID % $(nproc)))
         QEMU_COMMAND="taskset -c $CPU_CORE qemu-system-xtensa -nographic -machine esp32 \
 -drive file=$FIRMWARE_PATH,if=mtd,format=raw -m 4M \
@@ -272,14 +314,11 @@ $QEMU_SERIAL_ARG \
             echo "   Starting QEMU ESP32 emulator $ID/$DRONE_COUNT (Network: TCP port $QEMU_NET_PORT)"
         fi
 
-        # Run QEMU in background, redirect output to log file
         $QEMU_COMMAND > logs/qemu_$ID.log 2>&1 &
         QEMU_PIDS+=($!)
     done
 
     echo "Started ${#QEMU_PIDS[@]} QEMU ESP32 emulators"
-
-    # Time for QEMU initialization
     echo "Waiting for QEMU ESP32 initialization..."
     sleep 10
 fi
@@ -288,12 +327,9 @@ fi
 echo "Starting Go simulator in $SIM_MODE mode..."
 if [ "$QEMU_MODE" = "true" ]; then
     echo "   QEMU ESP32 emulators will handle data routing"
-    # In QEMU mode, we need to create a temporary config that points to QEMU ports
     TEMP_CONFIG="config_qemu_temp.json"
     echo "   Creating temporary QEMU config: $TEMP_CONFIG"
-
-    # Create QEMU config by modifying ports to point to QEMU instead of SITL
-    jq '.drones |= map(.serial5.port = (6000 + .id))' $CONFIG_FILE > $TEMP_CONFIG
+    jq '.drones |= map(.serial5.port = (6000 + .id))' "$CONFIG_FILE" > "$TEMP_CONFIG"
     CONFIG_TO_USE=$TEMP_CONFIG
 else
     echo "   Direct connection to SITL instances"
@@ -307,12 +343,12 @@ if [ "$SIM_MODE" = "experiment" ]; then
 fi
 
 $SIMULATOR_CMD &
-SIMULATOR_PID=$!  # Saving the simulator Process PID
+SIMULATOR_PID=$!
 
 echo ""
 echo "All systems started in headless mode!"
 echo "Go Simulator PID: $SIMULATOR_PID"
-echo "MAVProxy PIDs: ${#MAVPROXY_PIDS[@]} instances"
+echo "Bridge PIDs: ${#MAVPROXY_PIDS[@]} instances"
 echo "SITL PIDs: ${#SITL_PIDS[@]} instances"
 if [ "$QEMU_MODE" = "true" ]; then
     echo "QEMU ESP32 PIDs: ${#QEMU_PIDS[@]} instances"
@@ -320,35 +356,32 @@ fi
 echo ""
 echo "Log files are available in logs/ directory:"
 echo "   - drone_*.log (SITL output)"
-echo "   - mavproxy_*.log (MAVProxy output)"
+echo "   - mavproxy_*.log (bridge output)"
 if [ "$QEMU_MODE" = "true" ]; then
     echo "   - qemu_*.log (QEMU ESP32 output)"
 fi
+if [ -n "$MAVPROXY_SESSION_CONFIG" ]; then
+    echo "   - mavproxy_single.log (single-process bridge output)"
+fi
 echo ""
 echo "To monitor specific drone, use: tail -f logs/drone_0.log"
-echo "To see Go simulator output: check console or redirect to file"
-echo ""
 echo "Press Ctrl+C to stop all processes..."
 
-# Function for completing all processes
 function cleanup() {
     echo ""
     echo "Stopping all processes..."
 
-    # Stop Go simulator first
     if [ ! -z "$SIMULATOR_PID" ]; then
         echo "   Stopping Go simulator..."
         kill -TERM $SIMULATOR_PID 2>/dev/null
         wait $SIMULATOR_PID 2>/dev/null
     fi
 
-    # Stop MAVProxy instances
-    echo "   Stopping ${#MAVPROXY_PIDS[@]} MAVProxy instances..."
+    echo "   Stopping ${#MAVPROXY_PIDS[@]} bridge instances..."
     for PID in "${MAVPROXY_PIDS[@]}"; do
         kill -TERM $PID 2>/dev/null
     done
 
-    # Stop QEMU ESP32 instances
     if [ "$QEMU_MODE" = "true" ]; then
         echo "   Stopping ${#QEMU_PIDS[@]} QEMU ESP32 instances..."
         for PID in "${QEMU_PIDS[@]}"; do
@@ -356,33 +389,31 @@ function cleanup() {
         done
     fi
 
-    # Terminating SITL processes
     echo "   Stopping ${#SITL_PIDS[@]} SITL instances..."
     for PID in "${SITL_PIDS[@]}"; do
         kill -TERM $PID 2>/dev/null
     done
 
-    # Kill by process name as backup
     pkill -f "arducopter" 2>/dev/null
     pkill -f "ArduCopter" 2>/dev/null
     pkill -f "mavproxy.py" 2>/dev/null
+    pkill -f "go-mavproxy" 2>/dev/null
     if [ "$QEMU_MODE" = "true" ]; then
         pkill -f "qemu-system-xtensa" 2>/dev/null
     fi
 
-    # Give time for graceful termination
     sleep 5
 
-    # Force termination if there is anything left
     if pgrep -f "arducopter|ArduCopter" > /dev/null; then
         echo "   Force killing remaining SITL processes..."
         pkill -9 -f "arducopter" 2>/dev/null
         pkill -9 -f "ArduCopter" 2>/dev/null
     fi
 
-    if pgrep -f "mavproxy.py" > /dev/null; then
-        echo "   Force killing MAVProxy..."
+    if pgrep -f "mavproxy.py|go-mavproxy" > /dev/null; then
+        echo "   Force killing bridge processes..."
         pkill -9 -f "mavproxy.py" 2>/dev/null
+        pkill -9 -f "go-mavproxy" 2>/dev/null
     fi
 
     if [ "$QEMU_MODE" = "true" ] && pgrep -f "qemu-system-xtensa" > /dev/null; then
@@ -390,8 +421,7 @@ function cleanup() {
         pkill -9 -f "qemu-system-xtensa" 2>/dev/null
     fi
 
-    # Check that everything is completed
-    PROCESS_PATTERN="arducopter|ArduCopter|mavproxy.py|golang-simulator"
+    PROCESS_PATTERN="arducopter|ArduCopter|mavproxy.py|go-mavproxy|golang-simulator"
     if [ "$QEMU_MODE" = "true" ]; then
         PROCESS_PATTERN="$PROCESS_PATTERN|qemu-system-xtensa"
     fi
@@ -403,20 +433,18 @@ function cleanup() {
         echo "All processes stopped successfully"
     fi
 
-    # Clean up temporary config file
     if [ "$QEMU_MODE" = "true" ] && [ -f "config_qemu_temp.json" ]; then
         rm -f config_qemu_temp.json
         echo "Cleaned up temporary QEMU config"
     fi
 
+    if [ -n "$MAVPROXY_SESSION_CONFIG" ] && [ -f "$MAVPROXY_SESSION_CONFIG" ]; then
+        rm -f "$MAVPROXY_SESSION_CONFIG"
+    fi
+
     exit 0
 }
 
-# Interception of signals for correct termination
 trap cleanup SIGINT SIGTERM
-
-# Waiting for the simulator to finish
 wait $SIMULATOR_PID
-
-# Termination of all processes after completion of the simulator
 cleanup
