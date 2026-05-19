@@ -1,0 +1,132 @@
+{
+  "drones": [
+    {
+      "id": 0,
+      "udp_port": 14500,
+      "serial5_port": 0,
+      "serial5": {
+        "type": "tcp",
+        "port": 5765,
+        "path": ""
+      },
+      "initial_position": {
+        "lat": 59.7561805066475,
+        "lon": 30.19971494777868,
+        "alt": 30
+      }
+    },
+    {
+      "id": 1,
+      "udp_port": 14510,
+      "serial5_port": 0,
+      "serial5": {
+        "type": "tcp",
+        "port": 5775,
+        "path": ""
+      },
+      "initial_position": {
+        "lat": 59.7561805066475,
+        "lon": 30.20025,
+        "alt": 30
+      }
+    },
+    {
+      "id": 2,
+      "udp_port": 14520,
+      "serial5_port": 0,
+      "serial5": {
+        "type": "tcp",
+        "port": 5785,
+        "path": ""
+      },
+      "initial_position": {
+        "lat": 59.7561805066475,
+        "lon": 30.20078505222132,
+        "alt": 30
+      }
+    },
+    {
+      "id": 3,
+      "udp_port": 14530,
+      "serial5_port": 0,
+      "serial5": {
+        "type": "tcp",
+        "port": 5795,
+        "path": ""
+      },
+      "initial_position": {
+        "lat": 59.75645,
+        "lon": 30.19971494777868,
+        "alt": 30
+      }
+    },
+    {
+      "id": 4,
+      "udp_port": 14540,
+      "serial5_port": 0,
+      "serial5": {
+        "type": "tcp",
+        "port": 5805,
+        "path": ""
+      },
+      "initial_position": {
+        "lat": 59.75645,
+        "lon": 30.20025,
+        "alt": 30
+      }
+    },
+    {
+      "id": 5,
+      "udp_port": 14550,
+      "serial5_port": 0,
+      "serial5": {
+        "type": "tcp",
+        "port": 5815,
+        "path": ""
+      },
+      "initial_position": {
+        "lat": 59.75645,
+        "lon": 30.20078505222132,
+        "alt": 30
+      }
+    },
+    {
+      "id": 6,
+      "udp_port": 14560,
+      "serial5_port": 0,
+      "serial5": {
+        "type": "tcp",
+        "port": 5825,
+        "path": ""
+      },
+      "initial_position": {
+        "lat": 59.7567194933525,
+        "lon": 30.19971494777868,
+        "alt": 30
+      }
+    },
+    {
+      "id": 7,
+      "udp_port": 14570,
+      "serial5_port": 0,
+      "serial5": {
+        "type": "tcp",
+        "port": 5835,
+        "path": ""
+      },
+      "initial_position": {
+        "lat": 59.7567194933525,
+        "lon": 30.20025,
+        "alt": 30
+      }
+    }
+  ],
+  "network": {
+    "max_range": 1000,
+    "base_packet_loss": 0.1,
+    "disconnect_probability": 0.05,
+    "update_rate_hz": 10,
+    "channel_buffer_size": 1000,
+    "max_concurrent_msgs": 100
+  }
+}

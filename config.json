@@ -8,9 +8,9 @@
         "port": 5765
       },
       "initial_position": {
-        "lat": 0.00025,
-        "lon": 0.0002,
-        "alt": 10
+        "lat": 0.000013,
+        "lon": 0.000010168882500761488,
+        "alt": 0
       }
     },
     {
@@ -21,9 +21,9 @@
         "port": 5775
       },
       "initial_position": {
-        "lat": 0.0001,
-        "lon": 0.00012,
-        "alt": 10
+        "lat": 0.000010168882500898315,
+        "lon": 0.00013,
+        "alt": 0
       }
     },
     {
@@ -34,9 +34,9 @@
         "port": 5785
       },
       "initial_position": {
-        "lat": 0.00018,
-        "lon": 0.00011,
-        "alt": 10
+        "lat": 0.000000168882500898315,
+        "lon": 0.00018983111749923853,
+        "alt": 0
       }
     },
     {
@@ -47,17 +47,84 @@
         "port": 5795
       },
       "initial_position": {
-        "lat": 0.00013,
-        "lon": 0.00022,
-        "alt": 10
+        "lat": 0.0001,
+        "lon": 0.000010168882500761488,
+        "alt": 0
+      }
+    },
+    {
+      "id": 4,
+      "udp_port": 14540,
+      "serial5": {
+        "type": "tcp",
+        "port": 5805
+      },
+      "initial_position": {
+        "lat": 0.0001,
+        "lon": 0.0001,
+        "alt": 0
+      }
+    },
+    {
+      "id": 5,
+      "udp_port": 14550,
+      "serial5": {
+        "type": "tcp",
+        "port": 5815
+      },
+      "initial_position": {
+        "lat": 0.0001,
+        "lon": 0.00018983111749923853,
+        "alt": 0
+      }
+    },
+    {
+      "id": 6,
+      "udp_port": 14560,
+      "serial5": {
+        "type": "tcp",
+        "port": 5825
+      },
+      "initial_position": {
+        "lat": 0.0001898311174991017,
+        "lon": 0.000010168882500761488,
+        "alt": 0
+      }
+    },
+    {
+      "id": 7,
+      "udp_port": 14570,
+      "serial5": {
+        "type": "tcp",
+        "port": 5835
+      },
+      "initial_position": {
+        "lat": 0.0001898311174991017,
+        "lon": 0.0001,
+        "alt": 0
+      }
+    },
+    {
+      "id": 8,
+      "udp_port": 14580,
+      "serial5": {
+        "type": "tcp",
+        "port": 5845
+      },
+      "initial_position": {
+        "lat": 0.0001898311174991017,
+        "lon": 0.00018983111749923853,
+        "alt": 0
       }
     }
   ],
   "network": {
-    "max_range": 1000.0,
-    "base_packet_loss": 0.02,
-    "disconnect_probability": 0.1,
-    "update_rate_hz": 10
+    "max_range": 1000,
+    "base_packet_loss": 0.1,
+    "disconnect_probability": 0.05,
+    "update_rate_hz": 10,
+    "channel_buffer_size": 1000,
+    "max_concurrent_msgs": 100
   },
   "message_size": 32
 }

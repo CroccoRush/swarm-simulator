@@ -121,7 +121,7 @@ func NewDrone(
 		} else {
 			d.logFile = file
 			// Write CSV header
-			if _, err := d.logFile.WriteString("time,lat,lon,alt,hdg\n"); err != nil {
+			if _, err := d.logFile.WriteString("time,lat,lon,alt,hdg,mark\n"); err != nil {
 				log.Errorf("Failed to write header to log file: %v", err)
 			}
 		}
@@ -389,7 +389,7 @@ func (d *Drone) mavlinkReader(ctx context.Context) {
 				)
 				// Log to file
 				if d.logFile != nil && d.isLoggingPosition.Load() {
-					logLine := fmt.Sprintf("%d,%d,%d,%d,%d\n",
+					logLine := fmt.Sprintf("%d,%d,%d,%d,%d,\n",
 						time.Now().UnixNano(),
 						int64(pos.Lat),
 						int64(pos.Lon),
@@ -633,10 +633,20 @@ func (d *Drone) WriteLog(marker string) error {
 	if d.logFile == nil {
 		return fmt.Errorf("log file for drone %d is not open", d.ID)
 	}
-	// Sanitize marker to ensure it doesn't break CSV format
+	// Sanitize marker to keep the CSV row structure stable.
 	sanitizedMarker := strings.ReplaceAll(marker, ",", ";")
-	timestamp := time.Now().UTC().Format(time.RFC3339Nano)
-	logLine := fmt.Sprintf("%s,MARK,%s\n", timestamp, sanitizedMarker)
+	sanitizedMarker = strings.ReplaceAll(sanitizedMarker, "\n", " ")
+	sanitizedMarker = strings.ReplaceAll(sanitizedMarker, "\r", " ")
+
+	pos := d.GetPosition()
+	logLine := fmt.Sprintf("%d,%d,%d,%d,%d,%s\n",
+		time.Now().UnixNano(),
+		int64(pos.Lat),
+		int64(pos.Lon),
+		int64(pos.Alt),
+		int64(pos.Heading),
+		sanitizedMarker,
+	)
 
 	if _, err := d.logFile.WriteString(logLine); err != nil {
 		return fmt.Errorf("failed to write marker to log for drone %d: %w", d.ID, err)

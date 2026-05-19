@@ -61,7 +61,7 @@ actions:
     drones: all
     pitch: 1500 # Hover
     yaw: 1500
-    duration: 2.0
+    duration: 10.0
 
   - command: write_log
     marker: "Finished flight pattern"

@@ -3,6 +3,9 @@ eeprom.bin
 mav.*
 terrain/
 logs/
+tests/benchmark/results/
+tests/benchmark/generated/
+tests/benchmark/trajectory_runs/
 params/
 !params/copter_template.parm
 mav_*.parm
